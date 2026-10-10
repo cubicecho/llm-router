@@ -1,0 +1,45 @@
+{
+  "name": "llm-router",
+  "version": "0.0.0",
+  "private": true,
+  "description": "LLM Router - group OpenAI-compatible model servers into workspaces and re-expose each as one /v1 endpoint",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "workspaces": [
+    "shared",
+    "server",
+    "app"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:app\"",
+    "dev:app": "npm run dev -w app",
+    "dev:server": "npm run dev -w server",
+    "build": "npm run build -w shared && npm run build -w server && npm run build -w app",
+    "build:app": "npm run build -w app",
+    "build:server": "npm run build -w server",
+    "build:docker": "docker build -t llm-router .",
+    "start": "NODE_ENV=production node --env-file-if-exists=.env server/dist/index.js",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "check": "npm run check:biome && npm run check:types",
+    "check:biome": "biome check --write .",
+    "check:fix": "biome check --write .",
+    "check:types": "tsc --noEmit -p shared/tsconfig.json && tsc --noEmit -p server/tsconfig.json && tsc --noEmit -p app/tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "storybook": "npm run storybook -w app",
+    "build-storybook": "npm run build-storybook -w app",
+    "clean": "rm -rf node_modules shared/dist server/dist app/dist"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.11",
+    "@types/node": "^22.13.0",
+    "concurrently": "^9.1.2",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  }
+}

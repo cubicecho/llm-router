@@ -1,0 +1,30 @@
+services:
+  llm-router:
+    build: .
+    image: llm-router
+    ports:
+      - '3010:3010'
+    volumes:
+      # Config files — hand-editable on the host; apply edits with
+      # POST /api/reload (or the Settings page). Must be writable by uid 1000.
+      - ./data:/data
+    environment:
+      # Set a bearer token, OR set SECURE_LOCAL_NET=true to disable auth on a
+      # trusted local network. If neither is set, a token is generated into
+      # data/config/settings.json on first run and printed to the logs.
+      LLM_ROUTER_TOKEN: ${LLM_ROUTER_TOKEN:-}
+      SECURE_LOCAL_NET: ${SECURE_LOCAL_NET:-}
+    restart: unless-stopped
+    healthcheck:
+      # /healthz needs no token and answers 200 once the server is listening.
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          'fetch("http://localhost:" + (process.env.PORT || 3010) + "/healthz").then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))',
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
