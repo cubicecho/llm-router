@@ -9,6 +9,9 @@ data
 dist
 **/dist
 
+# The project site (deployed to GitHub Pages, not part of the image)
+site
+
 # VCS, tests, local config
 .git
 coverage

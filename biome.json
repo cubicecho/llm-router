@@ -82,7 +82,8 @@
       "!**/node_modules",
       "!.claude",
       "!**/data",
-      "!**/*.gen.ts"
+      "!**/*.gen.ts",
+      "!site"
     ]
   },
   "overrides": [

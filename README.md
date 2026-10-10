@@ -1,6 +1,7 @@
 # llm-router
 
 One OpenAI-compatible endpoint in front of several model servers.
+Site: <https://cubicecho.github.io/llm-router/>
 
 Register **providers** (OpenAI, OpenRouter, Ollama, llama.cpp, vLLM, anything
 that speaks the OpenAI API), group them into **workspaces**, and point a client

@@ -93,3 +93,20 @@ A single story file: `cd app && npx vitest run -c vitest.stories.config.ts src/r
 - `.github/workflows/release.yml`: after CI passes on `main`, semantic-release
   cuts a release and pushes the Docker image to `ghcr.io/<repo>` and Docker Hub.
   Needs the repo secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`.
+- `.github/workflows/pages.yml`: builds `site/` and deploys it to
+  <https://cubicecho.github.io/llm-router/> on pushes to `main` that touch it.
+
+## The project site
+
+`site/` is a one-page Eleventy site scaffolded from
+[cubesite](https://github.com/cubicecho/cubesite). It has its own
+`package.json` and lockfile, is not an npm workspace, and is left out of Biome
+and the Docker image. `cd site && npm install && npm run dev` previews it.
+
+- Content is `site/src/index.njk` and `site/src/_data/site.js`; project-only
+  styles go in `site/src/css/site.css`.
+- `cubesite.css`, `mark.njk` and the two SVGs under `assets/` are vendored.
+  Do not edit them here: change cubesite and re-sync with
+  `node ../../cubesite/scripts/scaffold.mjs . --theme`.
+- The site is served under `/llm-router/`, so every internal link and asset
+  goes through the `| url` filter.

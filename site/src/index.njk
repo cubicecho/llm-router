@@ -1,0 +1,162 @@
+---
+layout: base.njk
+---
+<section class="hero project-hero">
+  <h1>{{ site.name }}</h1>
+  <p>{{ site.tagline }}</p>
+  <p class="cta">
+    <a class="button" href="#start">Get started</a>
+    <a class="button secondary" href="{{ site.repo }}" rel="noopener">GitHub ↗</a>
+  </p>
+</section>
+
+<section class="section">
+  <h2>What it does</h2>
+  <p class="section-intro">
+    Register the model servers you use — OpenAI, OpenRouter, Ollama, llama.cpp,
+    vLLM, anything that speaks the OpenAI API — and group them into workspaces.
+    A client pointed at a workspace sees one <code>/v1</code> that lists every
+    model its providers offer and sends each request to the right one. It is
+    the model-server counterpart of
+    <a href="https://cubicecho.github.io/mcp-router/" rel="noopener">mcp-router</a>.
+  </p>
+
+  <ul class="card-grid">
+    <li>
+      <article class="card">
+        <h3>One endpoint, every model</h3>
+        <p>
+          Models are served as <code>&lt;provider&gt;/&lt;model&gt;</code>, so
+          <code>ollama/qwen3:32b</code> and <code>openai/gpt-5</code> sit in
+          the same list and the id says where a request goes.
+        </p>
+      </article>
+    </li>
+    <li>
+      <article class="card">
+        <h3>Workspaces choose what a client sees</h3>
+        <p>
+          Each workspace has its own base URL and serves the providers you
+          switch on, all of their models or a subset you pick.
+        </p>
+      </article>
+    </li>
+    <li>
+      <article class="card">
+        <h3>A thin pass-through</h3>
+        <p>
+          Requests are forwarded with only <code>model</code> rewritten, and
+          responses, streams included, come back unchanged. Provider keys stay
+          on the router and are never shown again.
+        </p>
+      </article>
+    </li>
+  </ul>
+</section>
+
+<section class="section">
+  <h2>What it looks like</h2>
+
+  <div class="shot-grid">
+    <figure class="shot">
+      <a href="{{ '/assets/screenshots/providers-light.png' | url }}">
+        <picture>
+          <source srcset="{{ '/assets/screenshots/providers-dark.png' | url }}" media="(prefers-color-scheme: dark)" />
+          <img src="{{ '/assets/screenshots/providers-light.png' | url }}" alt="The Providers page: Ollama, OpenAI and OpenRouter, each with its base URL, how many models it lists and whether a key is set, above the connection details for the global endpoint" loading="lazy" width="1920" height="1200" />
+        </picture>
+      </a>
+      <figcaption>
+        <strong>Providers.</strong> The model count next to each one shows the
+        router can reach it.
+      </figcaption>
+    </figure>
+
+    <figure class="shot">
+      <a href="{{ '/assets/screenshots/workspace-light.png' | url }}">
+        <picture>
+          <source srcset="{{ '/assets/screenshots/workspace-dark.png' | url }}" media="(prefers-color-scheme: dark)" />
+          <img src="{{ '/assets/screenshots/workspace-light.png' | url }}" alt="A workspace page: a switch per provider, with OpenRouter limited to two models, and the five model ids the workspace serves" loading="lazy" width="1920" height="1770" />
+        </picture>
+      </a>
+      <figcaption>
+        <strong>A workspace.</strong> Switch providers on, narrow one to the
+        models you want, and copy the ids a client asks for.
+      </figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="section" id="start">
+  <h2>Get started</h2>
+  <div class="prose">
+    <p>With Docker:</p>
+    <pre class="code"><code>git clone {{ site.repo }}.git
+cd llm-router
+docker compose up --wait     # http://localhost:3000, config in ./data</code></pre>
+
+    <p>Or from source, with Node 22 or newer:</p>
+    <pre class="code"><code>npm install
+npm run dev                  # UI on http://localhost:3000</code></pre>
+
+    <p>
+      On first run the server generates a bearer token and prints it once;
+      paste it into the UI when asked. Set <code>LLM_ROUTER_TOKEN</code> to
+      choose it yourself, or <code>SECURE_LOCAL_NET=true</code> to run without
+      one on a network you trust. Then:
+    </p>
+    <ol>
+      <li>
+        <strong>Providers → Add provider.</strong> A name
+        (<code>ollama</code>), the base URL including the version path
+        (<code>http://localhost:11434/v1</code>) and, if it needs one, an API
+        key.
+      </li>
+      <li>
+        <strong>Workspaces → New workspace.</strong> Switch on the providers it
+        should serve.
+      </li>
+      <li>Copy the connection details from the workspace page.</li>
+    </ol>
+  </div>
+</section>
+
+<section class="section" id="connect">
+  <h2>Connect a client</h2>
+  <div class="prose">
+    <table>
+      <tbody>
+        <tr>
+          <th scope="row">Base URL</th>
+          <td>
+            <code>http://&lt;host&gt;:3000/w/&lt;slug&gt;/v1</code> for a
+            workspace, <code>http://&lt;host&gt;:3000/v1</code> for every
+            enabled provider
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">API key</th>
+          <td>the router's token</td>
+        </tr>
+        <tr>
+          <th scope="row">Model</th>
+          <td><code>&lt;provider&gt;/&lt;model&gt;</code>, such as <code>ollama/qwen3:32b</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <pre class="code"><code>curl http://localhost:3000/w/research/v1/chat/completions \
+  -H "Authorization: Bearer $LLM_ROUTER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "ollama/qwen3:32b", "messages": [{"role": "user", "content": "Hello"}]}'</code></pre>
+
+    <pre class="code"><code>from openai import OpenAI
+
+client = OpenAI(base_url="http://localhost:3000/w/research/v1", api_key="&lt;router token&gt;")
+client.chat.completions.create(model="ollama/qwen3:32b", messages=[{"role": "user", "content": "Hello"}])</code></pre>
+  </div>
+
+  <p class="readme-link">
+    Endpoints, configuration and the design decisions are in the project README:
+    <a href="{{ site.repo }}#readme" rel="noopener">{{ site.repo }}</a>
+  </p>
+</section>
