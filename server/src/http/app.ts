@@ -1,0 +1,103 @@
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+import type { Health } from '@llm-router/shared';
+import express from 'express';
+import { errorMiddleware } from '../api/error-middleware.ts';
+import { createApiRouter } from '../api/router.ts';
+import { createAuthMiddleware, createOriginMiddleware, effectiveAuth } from '../auth/middleware.ts';
+import type { ConfigStore } from '../config/store.ts';
+import { HTTP_DEFAULTS } from '../core/defaults.ts';
+import { notFound } from '../core/errors.ts';
+import { SERVER_VERSION } from '../core/version.ts';
+import { globalScope, workspaceScope } from '../gateway/endpoint-scope.ts';
+import { ModelCatalog } from '../gateway/models.ts';
+import { openAiErrorMiddleware, sendOpenAiError } from '../gateway/openai-error.ts';
+import { createEndpointRouter } from '../gateway/routes.ts';
+import type { UpstreamFetch } from '../gateway/upstream-fetch.ts';
+import { outboundFetch } from './tuning.ts';
+
+/** Path prefixes the backend answers; the web UI's fallback leaves them alone. */
+const BACKEND_PATH_PREFIXES = ['/api', '/v1', '/w/', '/healthz'] as const;
+
+/** What the Express app is built over. */
+export interface AppDeps {
+  store: ConfigStore;
+  /** Override for tests; a keep-alive `fetch` is made when absent. */
+  fetch?: UpstreamFetch;
+  /** Override for tests; a catalog over `fetch` is made when absent. */
+  catalog?: ModelCatalog;
+  /** Override for tests; `<repo>/app/dist` when absent. */
+  appDistDir?: string;
+}
+
+/**
+ * Build the Express app (separate from listen() so tests can drive it with supertest).
+ *
+ * @param deps - The store, plus the test overrides.
+ * @returns The app: /healthz, /api, /v1, /w/<slug>/v1, and the built web UI when its directory exists.
+ */
+export function createApp(deps: AppDeps): express.Express {
+  const { store } = deps;
+  const fetch = deps.fetch ?? outboundFetch();
+  const catalog = deps.catalog ?? new ModelCatalog(fetch);
+  const app = express();
+  app.disable('x-powered-by');
+  app.use(express.json({ limit: HTTP_DEFAULTS.bodyLimit }));
+
+  const getAuth = () => effectiveAuth(store.getSettings());
+  const getAllowedOrigins = () => store.getSettings().allowedOrigins;
+  // The /v1 doors refuse in OpenAI's envelope, so a client SDK reports the reason.
+  const openAiAuth = createAuthMiddleware(getAuth, sendOpenAiError);
+  // Origin check first so a DNS-rebound browser request is rejected regardless of the bearer token
+  // (which it cannot read anyway) — the one guard that still applies when SECURE_LOCAL_NET drops auth.
+  const openAiOriginGuard = createOriginMiddleware(getAllowedOrigins, sendOpenAiError);
+
+  // Before the auth middleware: Docker's healthcheck and a load balancer carry no token. It reads nothing the
+  // router holds, so a healthy answer means only that the process is serving.
+  app.get('/healthz', (_req, res) => {
+    const health: Health = { ok: true, version: SERVER_VERSION };
+    res.json(health);
+  });
+
+  app.use('/api', createAuthMiddleware(getAuth), createApiRouter({ store, catalog }));
+
+  const gateway = { store, catalog, fetch };
+  app.use(
+    '/v1',
+    openAiOriginGuard,
+    openAiAuth,
+    createEndpointRouter(gateway, () => globalScope(store)),
+  );
+  app.use(
+    '/w/:slug/v1',
+    openAiOriginGuard,
+    openAiAuth,
+    createEndpointRouter(gateway, (req) => {
+      const { slug } = req.params;
+      const workspace = typeof slug === 'string' ? store.getWorkspace(slug) : undefined;
+      if (!workspace?.enabled) {
+        throw notFound(`Unknown workspace "${slug}"`);
+      }
+      return workspaceScope(workspace, store);
+    }),
+  );
+
+  // Production: serve the built web UI with an SPA fallback for non-API GETs.
+  const appDist = deps.appDistDir ?? path.resolve(import.meta.dirname, '../../../app/dist');
+  if (existsSync(appDist)) {
+    app.use(express.static(appDist));
+    app.use((req, res, next) => {
+      const isBackendPath = BACKEND_PATH_PREFIXES.some((prefix) => req.path.startsWith(prefix));
+      if (req.method === 'GET' && isBackendPath === false) {
+        res.sendFile(path.join(appDist, 'index.html'));
+        return;
+      }
+      next();
+    });
+  }
+
+  app.use('/v1', openAiErrorMiddleware);
+  app.use('/w', openAiErrorMiddleware);
+  app.use(errorMiddleware);
+  return app;
+}

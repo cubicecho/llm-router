@@ -1,0 +1,23 @@
+{
+  "name": "@llm-router/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "DATA_DIR=../data PORT=3011 node --env-file-if-exists=../.env --watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@llm-router/shared": "*",
+    "chokidar": "^4.0.0",
+    "express": "^5.0.0",
+    "undici": "^7.16.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/supertest": "^6.0.0",
+    "supertest": "^7.0.0"
+  }
+}
