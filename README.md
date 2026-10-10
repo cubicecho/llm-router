@@ -8,7 +8,7 @@ at a workspace. The client sees one `/v1` that lists every model the
 workspace's providers offer and routes each request to the right one.
 
 It is the model-server counterpart of
-[mcp-router](../mcp/mcp-router), and is built the same way.
+[mcp-router](https://github.com/cubicecho/mcp-router), and is built the same way.
 
 ## Quick start
 
@@ -146,3 +146,7 @@ npm run storybook
 ```
 
 `AGENTS.md` has the layout and the repo-specific rules.
+
+## License
+
+[MIT](LICENSE)

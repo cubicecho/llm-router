@@ -2,6 +2,7 @@
   "name": "llm-router",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "description": "LLM Router - group OpenAI-compatible model servers into workspaces and re-expose each as one /v1 endpoint",
   "type": "module",
   "engines": {

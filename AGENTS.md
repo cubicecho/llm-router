@@ -8,7 +8,7 @@ its members offer. `/v1` is the same over every enabled provider. Model ids are
 `<provider>/<upstream id>`. Requests are forwarded as bytes: nothing is
 translated between API formats.
 
-It mirrors its sibling `../mcp/mcp-router` in layout and tooling. Design
+It mirrors its sibling [mcp-router](https://github.com/cubicecho/mcp-router) in layout and tooling. Design
 decisions and their reasons are in [`README.md`](README.md).
 
 Monorepo (npm workspaces): `shared/` (zod schemas and types, the contract),
