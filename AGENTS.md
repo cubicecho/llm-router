@@ -30,13 +30,13 @@ Monorepo (npm workspaces): `shared/` (zod schemas and types, the contract),
 All from the repo root.
 
 ```bash
-npm run dev              # server (watch, port 3011) + Vite (port 3010, proxies /api, /v1, /w)
+npm run dev              # server (watch, port 3001) + Vite (port 3000, proxies /api, /v1, /w)
 npm run check            # biome check --write + tsc --noEmit for all three packages
 npm test                 # vitest: server (node), app (jsdom), then the stories in Chromium
 npm run storybook        # Storybook dev server (port 6006)
 npx playwright install chromium-headless-shell   # once per machine, for the stories project
 npm run build            # shared, server (tsc), app (vite build)
-npm run start            # node server/dist/index.js, serving app/dist on port 3010
+npm run start            # node server/dist/index.js, serving app/dist on port 3000
 docker compose up        # the container, with ./data mounted at /data
 ```
 

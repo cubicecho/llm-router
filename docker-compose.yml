@@ -3,7 +3,7 @@ services:
     build: .
     image: llm-router
     ports:
-      - '3010:3010'
+      - '3000:3000'
     volumes:
       # Config files — hand-editable on the host; apply edits with
       # POST /api/reload (or the Settings page). Must be writable by uid 1000.
@@ -22,7 +22,7 @@ services:
           'CMD',
           'node',
           '-e',
-          'fetch("http://localhost:" + (process.env.PORT || 3010) + "/healthz").then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))',
+          'fetch("http://localhost:" + (process.env.PORT || 3000) + "/healthz").then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))',
         ]
       interval: 30s
       timeout: 5s

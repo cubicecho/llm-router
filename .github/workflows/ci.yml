@@ -49,7 +49,7 @@ jobs:
       - name: Start the stack
         run: docker compose up -d --no-build --wait --wait-timeout 180
       - name: Check /healthz
-        run: curl -fsS http://127.0.0.1:3010/healthz
+        run: curl -fsS http://127.0.0.1:3000/healthz
       - name: Logs
         if: failure()
         run: docker compose logs

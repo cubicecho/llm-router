@@ -14,7 +14,7 @@ It is the model-server counterpart of
 
 ```bash
 npm install
-npm run dev          # UI on http://localhost:3010
+npm run dev          # UI on http://localhost:3000
 ```
 
 On first run the server generates a bearer token, writes it to
@@ -25,7 +25,7 @@ to run without one on a network you trust.
 With Docker:
 
 ```bash
-docker compose up --wait     # http://localhost:3010, config in ./data
+docker compose up --wait     # http://localhost:3000, config in ./data
 ```
 
 Then, in the UI:
@@ -41,12 +41,12 @@ Then, in the UI:
 
 | | |
 | --- | --- |
-| Base URL | `http://<host>:3010/w/<slug>/v1` for a workspace, `http://<host>:3010/v1` for every enabled provider |
+| Base URL | `http://<host>:3000/w/<slug>/v1` for a workspace, `http://<host>:3000/v1` for every enabled provider |
 | API key | the router's token |
 | Model | `<provider>/<model>`, e.g. `ollama/qwen3:32b` |
 
 ```bash
-curl http://localhost:3010/w/research/v1/chat/completions \
+curl http://localhost:3000/w/research/v1/chat/completions \
   -H "Authorization: Bearer $LLM_ROUTER_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"model": "ollama/qwen3:32b", "messages": [{"role": "user", "content": "Hello"}]}'
@@ -55,7 +55,7 @@ curl http://localhost:3010/w/research/v1/chat/completions \
 ```python
 from openai import OpenAI
 
-client = OpenAI(base_url="http://localhost:3010/w/research/v1", api_key="<router token>")
+client = OpenAI(base_url="http://localhost:3000/w/research/v1", api_key="<router token>")
 client.chat.completions.create(model="ollama/qwen3:32b", messages=[{"role": "user", "content": "Hello"}])
 ```
 
@@ -94,7 +94,7 @@ Leave `models` out to serve everything the provider lists.
 | `LLM_ROUTER_TOKEN` | the bearer token; overrides the one in `settings.json` |
 | `SECURE_LOCAL_NET` | `true` disables the token entirely |
 | `DATA_DIR` | where `config/` lives |
-| `PORT` | the port (default 3010) |
+| `PORT` | the port (default 3000) |
 | `HTTP_KEEP_ALIVE_TIMEOUT_MS`, `HTTP_OUTBOUND_KEEP_ALIVE_TIMEOUT_MS` | idle-connection timeouts, see `.env.example` |
 
 ### Secrets

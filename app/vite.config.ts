@@ -18,13 +18,13 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3010,
+    port: 3000,
     host: '0.0.0.0',
     proxy: {
-      '/api': 'http://localhost:3011',
-      '/v1': 'http://localhost:3011',
+      '/api': 'http://localhost:3001',
+      '/v1': 'http://localhost:3001',
       // A regex, so the SPA's own /workspaces route is not proxied.
-      '^/w/': 'http://localhost:3011',
+      '^/w/': 'http://localhost:3001',
     },
   },
 });

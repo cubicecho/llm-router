@@ -11,7 +11,7 @@ export interface RouterSettings {
 
 /** The values `settings.json` falls back to, frozen. */
 export const SETTINGS_DEFAULTS: Readonly<RouterSettings> = Object.freeze({
-  port: 3010,
+  port: 3000,
   responseTimeoutMs: 600_000,
 });
 
