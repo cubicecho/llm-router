@@ -83,6 +83,41 @@ export const modelsResponseSchema = z.object({
 /** The models of a provider, a workspace or the global endpoint. */
 export type ModelsResponse = z.infer<typeof modelsResponseSchema>;
 
+/** What a provider or one of its models has been asked for and has reported, since counting began. */
+export const tokenUsageSchema = z.object({
+  /** Requests the provider answered with a 2xx status. */
+  requests: z.number().int().nonnegative(),
+  /** Tokens sent to the model, as the provider reported them. */
+  inputTokens: z.number().int().nonnegative(),
+  /** Tokens the model produced, as the provider reported them. */
+  outputTokens: z.number().int().nonnegative(),
+});
+/** Request and token counts. */
+export type TokenUsage = z.infer<typeof tokenUsageSchema>;
+
+/** The usage of one model of a provider. */
+export const modelUsageSchema = tokenUsageSchema.extend({
+  /** The model's id at the provider. */
+  upstreamId: z.string(),
+});
+/** The usage of one model of a provider. */
+export type ModelUsage = z.infer<typeof modelUsageSchema>;
+
+/** The usage of one provider: its totals, and each model that has been called. */
+export const providerUsageSchema = tokenUsageSchema.extend({
+  provider: z.string(),
+  models: z.array(modelUsageSchema),
+});
+/** The usage of one provider. */
+export type ProviderUsage = z.infer<typeof providerUsageSchema>;
+
+/** What `GET /api/usage` answers: every provider that has been called. */
+export const usageResponseSchema = z.object({
+  providers: z.array(providerUsageSchema),
+});
+/** What `GET /api/usage` answers. */
+export type UsageResponse = z.infer<typeof usageResponseSchema>;
+
 /** A workspace as returned by the API: its stored config plus the derived endpoint path. */
 export const workspaceStatusSchema = workspaceConfigSchema.extend({
   /** Path of the workspace's OpenAI base URL, e.g. "/w/my-workspace/v1". */

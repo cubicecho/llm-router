@@ -26,6 +26,8 @@ export const ShowsTheProvider: Story = {
     await expect(canvas.getByRole('switch', { name: 'Enabled' })).toBeChecked();
     await expect(await canvas.findByText('ollama/qwen3:32b')).toBeVisible();
     await expect(canvas.getByText('2 models')).toBeVisible();
+    await expect(canvas.getByRole('heading', { name: 'Usage', level: 2 })).toBeVisible();
+    await expect(await canvas.findByText('40 requests · 1.3M in · 340.1K out')).toBeVisible();
     await expect(canvas.getByRole('link', { name: 'Providers', current: 'page' })).toBeVisible();
     await expect(canvasElement.ownerDocument.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
   },
@@ -39,6 +41,7 @@ export const ShowsThatAKeyIsSetWithoutShowingIt: Story = {
     await expect(await canvas.findByText('set')).toBeVisible();
     await expect(canvas.getByText('X-Title: llm-router')).toBeVisible();
     await expect(await canvas.findByText('openrouter/anthropic/claude-opus-5-5')).toBeVisible();
+    await expect(canvas.getByText('No requests yet.')).toBeVisible();
   },
 };
 

@@ -14,6 +14,7 @@ import { ModelCatalog } from '../gateway/models.ts';
 import { openAiErrorMiddleware, sendOpenAiError } from '../gateway/openai-error.ts';
 import { createEndpointRouter } from '../gateway/routes.ts';
 import type { UpstreamFetch } from '../gateway/upstream-fetch.ts';
+import { UsageStore } from '../usage/store.ts';
 import { outboundFetch } from './tuning.ts';
 
 /** Path prefixes the backend answers; the web UI's fallback leaves them alone. */
@@ -26,6 +27,8 @@ export interface AppDeps {
   fetch?: UpstreamFetch;
   /** Override for tests; a catalog over `fetch` is made when absent. */
   catalog?: ModelCatalog;
+  /** The loaded usage counts. A test leaves it out and gets an empty store over the same data directory. */
+  usage?: UsageStore;
   /** Override for tests; `<repo>/app/dist` when absent. */
   appDistDir?: string;
 }
@@ -40,6 +43,7 @@ export function createApp(deps: AppDeps): express.Express {
   const { store } = deps;
   const fetch = deps.fetch ?? outboundFetch();
   const catalog = deps.catalog ?? new ModelCatalog(fetch);
+  const usage = deps.usage ?? new UsageStore(store.dataDir);
   const app = express();
   app.disable('x-powered-by');
   app.use(express.json({ limit: HTTP_DEFAULTS.bodyLimit }));
@@ -59,9 +63,9 @@ export function createApp(deps: AppDeps): express.Express {
     res.json(health);
   });
 
-  app.use('/api', createAuthMiddleware(getAuth), createApiRouter({ store, catalog }));
+  app.use('/api', createAuthMiddleware(getAuth), createApiRouter({ store, catalog, usage }));
 
-  const gateway = { store, catalog, fetch };
+  const gateway = { store, catalog, fetch, usage };
   app.use(
     '/v1',
     openAiOriginGuard,

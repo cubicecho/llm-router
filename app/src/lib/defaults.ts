@@ -6,10 +6,13 @@ export interface PollingSettings {
   statusMs: number;
   /** How long a model listing is reused before it is fetched again, in ms. Fetching calls every provider in scope. */
   modelsStaleMs: number;
+  /** Request and token counts on the provider pages, in ms. */
+  usageMs: number;
 }
 
 /** The polling intervals and stale times the query hooks use. */
 export const POLLING_DEFAULTS: Readonly<PollingSettings> = Object.freeze({
   statusMs: 15_000,
   modelsStaleMs: 60_000,
+  usageMs: 15_000,
 });

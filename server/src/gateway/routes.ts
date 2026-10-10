@@ -2,6 +2,7 @@ import { HttpStatus } from '@llm-router/shared';
 import { type Request, Router } from 'express';
 import type { ConfigStore } from '../config/store.ts';
 import { notFound } from '../core/errors.ts';
+import type { UsageStore } from '../usage/store.ts';
 import type { EndpointScope } from './endpoint-scope.ts';
 import { listScopeModels, type ModelCatalog, type ScopedModel } from './models.ts';
 import { ModelNotFoundError } from './openai-error.ts';
@@ -14,6 +15,8 @@ export interface GatewayDeps {
   catalog: ModelCatalog;
   /** Reaches the providers for proxied calls. */
   fetch: UpstreamFetch;
+  /** Counts each answered request and the tokens it reported. */
+  usage: UsageStore;
 }
 
 /** OpenAI's `object` for one model. */
@@ -39,7 +42,7 @@ function toOpenAiModel(model: ScopedModel): Record<string, unknown> {
  * @returns A router serving `GET /models`, `GET /models/<id>` and every JSON `POST`.
  */
 export function createEndpointRouter(deps: GatewayDeps, resolveScope: (req: Request) => EndpointScope): Router {
-  const { store, catalog, fetch } = deps;
+  const { store, catalog, fetch, usage } = deps;
   const router = Router({ mergeParams: true });
 
   router.get('/models', async (req, res) => {
@@ -63,6 +66,7 @@ export function createEndpointRouter(deps: GatewayDeps, resolveScope: (req: Requ
         scope: resolveScope(req),
         pathSegments: req.params.path,
         fetch,
+        usage,
         responseTimeoutMs: store.getSettings().responseTimeoutMs,
       },
       req,

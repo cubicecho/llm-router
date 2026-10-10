@@ -23,6 +23,9 @@ export const ListsTheProviders: Story = {
     await expect(canvas.getByRole('link', { name: /openrouter/ })).toBeVisible();
     // Each row counts the models its provider lists, which shows the connection works.
     await waitFor(() => expect(canvas.getAllByText('2 models')).toHaveLength(2));
+    // Only the local provider has been called, so only its row says what it was asked for.
+    await expect(await canvas.findByText('42 requests · 1.3M in · 340.1K out')).toBeVisible();
+    await expect(canvas.getAllByText(/ in · /)).toHaveLength(1);
     // Only the hosted provider has a key, and neither key is on the page.
     await expect(canvas.getAllByText('key set')).toHaveLength(1);
     await expect(canvas.getByRole('heading', { name: 'Connect a client' })).toBeVisible();

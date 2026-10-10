@@ -53,11 +53,21 @@ async function startProvider(models: string[]): Promise<StubProvider> {
     if (req.body.stream === true) {
       res.setHeader('Content-Type', 'text/event-stream');
       res.write(`data: ${JSON.stringify({ model: req.body.model, delta: 'a' })}\n\n`);
+      if (req.body.stream_options?.include_usage === true) {
+        res.write(`data: ${JSON.stringify({ choices: [], usage: { prompt_tokens: 5, completion_tokens: 2 } })}\n\n`);
+      }
       res.write('data: [DONE]\n\n');
       res.end();
       return;
     }
-    res.json({ model: req.body.model, choices: [{ message: { role: 'assistant', content: 'hi' } }] });
+    res.json({
+      model: req.body.model,
+      choices: [{ message: { role: 'assistant', content: 'hi' } }],
+      usage: { prompt_tokens: 11, completion_tokens: 3, total_tokens: 14 },
+    });
+  });
+  upstream.post('/v1/embeddings', (req, res) => {
+    res.json({ model: req.body.model, data: [], usage: { prompt_tokens: 4, total_tokens: 4 } });
   });
   const server: Server = createServer(upstream);
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -320,7 +330,22 @@ describe('LLM Router', () => {
       });
       expect(res.status).toBe(200);
       expect(res.headers['content-type']).toContain('text/event-stream');
+      expect(res.text).toBe(
+        'data: {"model":"small","delta":"a"}\n\n' +
+          'data: {"choices":[],"usage":{"prompt_tokens":5,"completion_tokens":2}}\n\n' +
+          'data: [DONE]\n\n',
+      );
+      expect(alpha.seen.at(-1)?.body).toMatchObject({ stream_options: { include_usage: true } });
+    });
+
+    it('leaves a stream’s usage choice alone when the client made one', async () => {
+      const res = await authed(request(app).post('/v1/chat/completions')).send({
+        model: 'alpha/small',
+        stream: true,
+        stream_options: { include_usage: false },
+      });
       expect(res.text).toBe('data: {"model":"small","delta":"a"}\n\ndata: [DONE]\n\n');
+      expect(alpha.seen.at(-1)?.body).toMatchObject({ stream_options: { include_usage: false } });
     });
 
     it('passes a provider’s own error through untouched', async () => {
@@ -376,6 +401,69 @@ describe('LLM Router', () => {
       const res = await authed(request(app).get('/v1/files'));
       expect(res.status).toBe(404);
       expect(res.body.error.code).toBe('not_found');
+    });
+  });
+
+  describe('usage', () => {
+    const chat = (model: string, extra: Record<string, unknown> = {}) =>
+      authed(request(app).post('/v1/chat/completions')).send({ model, ...extra });
+    const getUsage = async () => (await authed(request(app).get('/api/usage'))).body.providers;
+
+    beforeEach(async () => {
+      await addProvider({ name: 'alpha', baseUrl: alpha.baseUrl, apiKey: 'sk-alpha' });
+      await addProvider({ name: 'beta', baseUrl: beta.baseUrl });
+    });
+
+    it('is empty before any request', async () => {
+      expect(await getUsage()).toEqual([]);
+    });
+
+    it('adds up requests and reported tokens per model and per provider', async () => {
+      await chat('alpha/large');
+      await chat('alpha/large');
+      await chat('alpha/small', { stream: true });
+      await authed(request(app).post('/v1/embeddings')).send({ model: 'beta/org/embed', input: 'x' });
+
+      expect(await getUsage()).toEqual([
+        {
+          provider: 'alpha',
+          requests: 3,
+          inputTokens: 27,
+          outputTokens: 8,
+          models: [
+            { upstreamId: 'large', requests: 2, inputTokens: 22, outputTokens: 6 },
+            { upstreamId: 'small', requests: 1, inputTokens: 5, outputTokens: 2 },
+          ],
+        },
+        {
+          provider: 'beta',
+          requests: 1,
+          inputTokens: 4,
+          outputTokens: 0,
+          models: [{ upstreamId: 'org/embed', requests: 1, inputTokens: 4, outputTokens: 0 }],
+        },
+      ]);
+    });
+
+    it('counts a request without tokens when the provider reports none', async () => {
+      await chat('alpha/small', { stream: true, stream_options: { include_usage: false } });
+      expect(await getUsage()).toMatchObject([{ provider: 'alpha', requests: 1, inputTokens: 0, outputTokens: 0 }]);
+    });
+
+    it('does not count a provider’s error, or a request that never reached one', async () => {
+      await chat('alpha/broken');
+      await chat('ghost/model');
+      expect(await getUsage()).toEqual([]);
+    });
+
+    it('drops a deleted provider’s counts', async () => {
+      await chat('alpha/large');
+      await authed(request(app).delete('/api/providers/alpha'));
+      expect(await getUsage()).toEqual([]);
+    });
+
+    it('requires the token', async () => {
+      expect((await request(app).get('/api/usage')).status).toBe(401);
     });
   });
 });

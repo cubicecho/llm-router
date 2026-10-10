@@ -68,11 +68,24 @@ client.chat.completions.create(model="ollama/qwen3:32b", messages=[{"role": "use
 | `GET /v1/models`, `GET /v1/models/<id>` | the models of every enabled provider |
 | `POST /v1/<anything>` | forwards a JSON request to the provider named in `model` |
 | `/w/<slug>/v1/...` | the same, limited to one workspace's members and their allowed models |
-| `/api/...` | the admin API the UI uses: `status`, `settings`, `reload`, `providers`, `workspaces` |
+| `/api/...` | the admin API the UI uses: `status`, `settings`, `reload`, `providers`, `workspaces`, `usage` |
 
 Any `POST` with a JSON body that carries a `model` is routed: `chat/completions`,
 `completions`, `embeddings`, `responses` and whatever else the provider
 supports. Streams (SSE) pass straight through.
+
+## Usage
+
+The router counts, per provider and per model, the requests a provider answered
+and the tokens it reported for them, in and out. The Providers page shows each
+provider's totals, a provider's page breaks them down by model, and
+`GET /api/usage` returns the same numbers. Counts are kept in
+`DATA_DIR/usage.json`, last across restarts, and are dropped when the provider
+is deleted.
+
+The numbers are the provider's own (`usage` in its response). A request whose
+answer carries no usage is counted with no tokens, and a provider's error
+response is not counted.
 
 ## Configuration
 
@@ -90,11 +103,15 @@ config/
 A workspace's `members` maps a provider name to `{ "enabled": true, "models": [...] }`.
 Leave `models` out to serve everything the provider lists.
 
+`DATA_DIR/usage.json`, beside `config/`, holds the request and token counts. It
+is the router's to write: delete it, with the router stopped, to start the
+counts over.
+
 | Environment variable | Does |
 | --- | --- |
 | `LLM_ROUTER_TOKEN` | the bearer token; overrides the one in `settings.json` |
 | `SECURE_LOCAL_NET` | `true` disables the token entirely |
-| `DATA_DIR` | where `config/` lives |
+| `DATA_DIR` | where `config/` and `usage.json` live |
 | `PORT` | the port (default 3000) |
 | `HTTP_KEEP_ALIVE_TIMEOUT_MS`, `HTTP_OUTBOUND_KEEP_ALIVE_TIMEOUT_MS` | idle-connection timeouts, see `.env.example` |
 
@@ -112,6 +129,16 @@ so put credentials in the API key field.
   with `model` rewritten to the provider's own id and pipes the response back
   unchanged. It does not translate between API formats, so a provider with a
   different native API is reached through its OpenAI-compatible endpoint.
+- **One field is added to a streamed completion.** Providers leave token counts
+  out of a stream unless asked, so a `chat/completions` or `completions`
+  request with `stream: true` is sent on with
+  `stream_options.include_usage: true`, and the stream then ends with one extra
+  chunk that has empty `choices` and the `usage`. A request that sets
+  `include_usage` itself, either way, is left as it is.
+- **Usage is read, not computed.** The router copies the counts out of the
+  response as it passes and never tokenizes anything, so it adds no delay and
+  the numbers match the provider's bill. A non-streamed response over 8 MB is
+  forwarded without being read.
 - **Model ids are `<provider>/<model>`,** split at the first `/`. Provider
   names cannot contain a `/`; upstream ids can. The prefix makes every id
   unique and tells the router where to send a request without a lookup table.
@@ -136,7 +163,8 @@ so put credentials in the API key field.
   small, hand-editable and easy to back up.
 
 Not in this version: multipart endpoints (audio, files), model aliases,
-per-workspace keys, native non-OpenAI APIs, usage accounting.
+per-workspace keys, native non-OpenAI APIs, usage per workspace or per day,
+cost.
 
 ## Development
 

@@ -6,6 +6,7 @@ import { ConfirmButton } from '@/components/confirm-button';
 import { DescriptionList, PropertyRow } from '@/components/description-list';
 import { ModelsCard } from '@/components/domain/model/models-card';
 import { ProviderDialog } from '@/components/domain/provider/provider-dialog';
+import { UsageCard } from '@/components/domain/usage/usage-card';
 import { PageLayout } from '@/components/page-layout';
 import { QueryState } from '@/components/query-state';
 import { SettingRow } from '@/components/setting-row';
@@ -29,7 +30,7 @@ export const Route = createFileRoute('/providers/$name')({
   component: ProviderDetailPage,
 });
 
-/** The page of one provider: where it is, whether it is on, and the models it lists right now. */
+/** The page of one provider: where it is, whether it is on, the models it lists right now, and what it has been asked for. */
 function ProviderDetailPage() {
   const { name } = Route.useParams();
   const navigate = useNavigate();
@@ -188,6 +189,8 @@ function ProviderDetailPage() {
                   }
                 />
               )}
+
+              <UsageCard provider={name} />
 
               {isEditOpen && <ProviderDialog key={name} open provider={provider} onOpenChange={setIsEditOpen} />}
             </>

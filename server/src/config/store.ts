@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { existsSync } from 'node:fs';
-import { chmod, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import {
   type ProviderConfig,
@@ -15,9 +15,7 @@ import { type FSWatcher, watch } from 'chokidar';
 import { effectiveAuth } from '../auth/middleware.ts';
 import { CONFIG_DEFAULTS } from '../core/defaults.ts';
 import { errorMessage } from '../core/errors.ts';
-
-/** Owner read and write only: these files hold the auth token and API keys in plain text. */
-const CONFIG_FILE_MODE = 0o600;
+import { writeJsonAtomic } from '../core/write-json-atomic.ts';
 
 /** Everything the config files hold, as last loaded. */
 export interface ConfigState {
@@ -166,7 +164,7 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
    */
   async updateSettings(patch: Partial<SettingsFile>): Promise<SettingsFile> {
     const next = settingsFileSchema.parse({ ...this.settings, ...patch });
-    await this.writeJsonAtomic(path.join(this.configDir, 'settings.json'), next);
+    await writeJsonAtomic(path.join(this.configDir, 'settings.json'), next);
     this.settings = next;
     return next;
   }
@@ -179,7 +177,7 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
    */
   async saveProvider(config: ProviderConfig): Promise<ProviderConfig> {
     const parsed = providerConfigSchema.parse(config);
-    await this.writeJsonAtomic(this.providerFile(parsed.name), parsed);
+    await writeJsonAtomic(this.providerFile(parsed.name), parsed);
     await this.removeStrayFile(this.strayProviderFiles, parsed.name);
     this.providers.set(parsed.name, parsed);
     return parsed;
@@ -223,7 +221,7 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
    */
   async saveWorkspace(config: WorkspaceConfig): Promise<WorkspaceConfig> {
     const parsed = workspaceConfigSchema.parse(config);
-    await this.writeJsonAtomic(this.workspaceFile(parsed.slug), parsed);
+    await writeJsonAtomic(this.workspaceFile(parsed.slug), parsed);
     await this.removeStrayFile(this.strayWorkspaceFiles, parsed.slug);
     this.workspaces.set(parsed.slug, parsed);
     return parsed;
@@ -313,7 +311,7 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
       console.log(`[auth] generated a bearer token and saved it to ${file}:\n  ${settings.authToken}`);
     }
     if (dirty) {
-      await this.writeJsonAtomic(file, settings);
+      await writeJsonAtomic(file, settings);
     }
     return settings;
   }
@@ -403,18 +401,5 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
     } catch (cause) {
       throw new Error(`${file} failed validation: ${errorMessage(cause)}`, { cause });
     }
-  }
-
-  /**
-   * Writes a value as JSON atomically: tmp file in the same dir, chmod 0600, rename over the target.
-   *
-   * @param file - The target path.
-   * @param value - What to serialise, with two-space indent and a trailing newline.
-   */
-  private async writeJsonAtomic(file: string, value: unknown): Promise<void> {
-    const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
-    await writeFile(tmp, `${JSON.stringify(value, null, 2)}\n`, { mode: CONFIG_FILE_MODE });
-    await chmod(tmp, CONFIG_FILE_MODE);
-    await rename(tmp, file);
   }
 }

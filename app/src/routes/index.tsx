@@ -8,6 +8,7 @@ import { ConfirmButton } from '@/components/confirm-button';
 import { ConnectCard } from '@/components/domain/endpoint/connect-card';
 import { ProviderDialog } from '@/components/domain/provider/provider-dialog';
 import { ProviderModelCount } from '@/components/domain/provider/provider-model-count';
+import { ProviderUsageText } from '@/components/domain/provider/provider-usage-text';
 import { ListItem } from '@/components/list-item';
 import { EmptyState } from '@/components/page';
 import { PageLayout } from '@/components/page-layout';
@@ -29,7 +30,7 @@ export const Route = createFileRoute('/')({
 /** create → the Add button; edit → a specific provider; null → closed. */
 type DialogState = { mode: 'create' } | { mode: 'edit'; provider: ProviderStatus } | null;
 
-/** The Providers page: every provider with its base URL and live model count, the add/edit dialog, and how to call the global endpoint. */
+/** The Providers page: every provider with its base URL, token counts and live model count, the add/edit dialog, and how to call the global endpoint. */
 function ProvidersPage() {
   const providers = useProviders();
   const { data } = providers;
@@ -75,6 +76,7 @@ function ProvidersPage() {
                           linkSlot={<Link to="/providers/$name" params={{ name: provider.name }} />}
                           meta={
                             <span className="flex flex-wrap items-center justify-end gap-1">
+                              <ProviderUsageText name={provider.name} />
                               <ProviderModelCount provider={provider} />
                               {provider.apiKeySet && <Badge variant="outline">key set</Badge>}
                               {provider.enabled ? (

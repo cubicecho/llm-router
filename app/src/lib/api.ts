@@ -17,6 +17,8 @@ import {
   type UpdateProviderRequest,
   type UpdateSettingsRequest,
   type UpdateWorkspaceRequest,
+  type UsageResponse,
+  usageResponseSchema,
   type WorkspaceStatus,
   workspaceStatusSchema,
 } from '@llm-router/shared';
@@ -295,4 +297,13 @@ export function deleteWorkspace(slug: string): Promise<void> {
  */
 export function getWorkspaceModels(slug: string): Promise<ModelsResponse> {
   return request(`/api/workspaces/${encodeURIComponent(slug)}/models`, modelsResponseSchema);
+}
+
+/**
+ * Reads the request and token counts from `GET /api/usage`.
+ *
+ * @returns Every provider that has been called, with its totals and its models.
+ */
+export function getUsage(): Promise<UsageResponse> {
+  return request('/api/usage', usageResponseSchema);
 }

@@ -11,6 +11,7 @@ import { ConfigStore } from './config/store.ts';
 import { createApp } from './http/app.ts';
 import { stopOnSignals } from './http/shutdown.ts';
 import { tuneInbound } from './http/tuning.ts';
+import { UsageStore } from './usage/store.ts';
 
 /** Loads the config, starts the HTTP server, and arranges a graceful stop on SIGTERM or SIGINT. */
 async function main(): Promise<void> {
@@ -25,7 +26,10 @@ async function main(): Promise<void> {
   });
   store.startWatching();
 
-  const app = createApp({ store });
+  const usage = new UsageStore(dataDir);
+  await usage.init();
+
+  const app = createApp({ store, usage });
   const port = listenPort(store.getSettings().port);
   // Unset binds all interfaces (Docker/LAN); set HOST=127.0.0.1 to restrict to localhost.
   const host = listenHost(store.getSettings().host);
@@ -47,7 +51,8 @@ async function main(): Promise<void> {
   tuneInbound(httpServer);
 
   // The watcher stops first, so a config edit during the drain reloads nothing.
-  stopOnSignals(httpServer, { before: () => store.close() });
+  // The counts are written last, once the requests that add to them have finished.
+  stopOnSignals(httpServer, { before: () => store.close(), after: () => usage.close() });
 }
 
 main().catch((err: unknown) => {

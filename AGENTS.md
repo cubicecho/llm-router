@@ -24,6 +24,7 @@ Monorepo (npm workspaces): `shared/` (zod schemas and types, the contract),
 | `auth/` | bearer-token and origin guards |
 | `api/` | the admin REST routes under `/api` and their error middleware |
 | `gateway/` | the `/v1` endpoints: model naming, scopes, model listing, the proxy |
+| `usage/` | request and token counts: reading them out of responses, keeping them in `DATA_DIR/usage.json` |
 
 ## Commands
 
@@ -67,6 +68,14 @@ A single story file: `cd app && npx vitest run -c vitest.stories.config.ts src/r
 - **Config writes are atomic and 0600** (temp file, `chmod`, `rename`), and
   files are parsed with `.loose()` so hand-added keys survive a round trip.
   The store watches the files (chokidar); `POST /api/reload` forces a reload.
+- **Usage is counted in the proxy, from the provider's own numbers.** The
+  response is piped through a tap that feeds `usage/reader.ts`; the bytes sent
+  on are untouched. The one change to a request is
+  `stream_options.include_usage` on a streamed completion (`withStreamUsage`),
+  without which a stream reports no counts. Only a 2xx answer is counted.
+- **`usage.json` sits outside `config/`** so the config watcher does not reload
+  on every flush. Writes are debounced (`USAGE_DEFAULTS.flushDelayMs`) and
+  flushed on shutdown. Deleting a provider drops its counts.
 - **`app/src/routeTree.gen.ts` is committed.** CI type-checks before it builds,
   so the tree has to be there. Regenerate it with `npx vite build` in `app/`
   after adding or renaming a route (`tsr generate` crashes under Node 26).

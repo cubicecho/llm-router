@@ -19,6 +19,7 @@ export const queryKeys = {
   workspaces: ['workspaces'] as const,
   workspace: (slug: string) => ['workspaces', slug] as const,
   workspaceModels: (slug: string) => ['workspaces', slug, 'models'] as const,
+  usage: ['usage'] as const,
 };
 
 /** A model listing calls the providers themselves: allow it to be slow, reuse it for a while, never auto-retry. */
@@ -34,6 +35,19 @@ export function useRouterStatus() {
     queryKey: queryKeys.status,
     queryFn: api.getStatus,
     refetchInterval: POLLING_DEFAULTS.statusMs,
+  });
+}
+
+/**
+ * Reads every provider's request and token counts and keeps them polled.
+ *
+ * @returns The query; `data.providers` holds each provider that has been called.
+ */
+export function useUsage() {
+  return useQuery({
+    queryKey: queryKeys.usage,
+    queryFn: api.getUsage,
+    refetchInterval: POLLING_DEFAULTS.usageMs,
   });
 }
 
@@ -174,7 +188,8 @@ export function useDeleteProvider() {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: (name: string) => api.deleteProvider(name),
-    onSuccess: () => invalidate(...PROVIDER_CHANGE_KEYS),
+    // The provider's counts go with it.
+    onSuccess: () => invalidate(...PROVIDER_CHANGE_KEYS, queryKeys.usage),
   });
 }
 

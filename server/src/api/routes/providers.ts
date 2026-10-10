@@ -31,9 +31,10 @@ export function toProviderStatus(provider: ProviderConfig): ProviderStatus {
  *
  * @param deps.store - Holds the provider and workspace configs.
  * @param deps.catalog - Lists a provider's models.
+ * @param deps.usage - Holds each provider's counts; a deleted provider's are dropped.
  * @returns The router, with paths relative to /api/providers.
  */
-export function createProviderRoutes({ store, catalog }: ApiDeps): Router {
+export function createProviderRoutes({ store, catalog, usage }: ApiDeps): Router {
   const router = Router();
 
   const requireProvider = (name: string): ProviderConfig => {
@@ -102,6 +103,7 @@ export function createProviderRoutes({ store, catalog }: ApiDeps): Router {
     await store.deleteProvider(name);
     await removeFromWorkspaces(name);
     catalog.forget(name);
+    usage.forget(name);
     res.status(HttpStatus.NoContent).end();
   });
 

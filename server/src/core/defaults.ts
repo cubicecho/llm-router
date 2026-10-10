@@ -63,3 +63,17 @@ export const GATEWAY_DEFAULTS: Readonly<GatewaySettings> = Object.freeze({
   modelListTimeoutMs: 10_000,
   errorBodyMaxChars: 500,
 });
+
+/** Settings for counting the tokens providers report. */
+export interface UsageSettings {
+  /** How long new counts wait in memory before usage.json is rewritten, in ms. One write then covers a burst of requests. */
+  flushDelayMs: number;
+  /** Largest non-streamed response body read for its token counts, in bytes. A larger one is forwarded and counted as a request only. */
+  maxResponseBytes: number;
+}
+
+/** The fixed usage settings this build ships with. */
+export const USAGE_DEFAULTS: Readonly<UsageSettings> = Object.freeze({
+  flushDelayMs: 2000,
+  maxResponseBytes: 8_388_608,
+});

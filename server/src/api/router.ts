@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { ApiDeps } from './deps.ts';
 import { createProviderRoutes } from './routes/providers.ts';
 import { createSystemRoutes } from './routes/system.ts';
+import { createUsageRoutes } from './routes/usage.ts';
 import { createWorkspaceRoutes } from './routes/workspaces.ts';
 
 export type { ApiDeps } from './deps.ts';
@@ -20,5 +21,6 @@ export function createApiRouter(deps: ApiDeps): Router {
   router.use(createSystemRoutes(deps));
   router.use('/providers', createProviderRoutes(deps));
   router.use('/workspaces', createWorkspaceRoutes(deps));
+  router.use('/usage', createUsageRoutes(deps));
   return router;
 }

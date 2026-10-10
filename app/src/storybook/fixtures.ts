@@ -4,11 +4,14 @@ import {
   type ModelsResponse,
   modelsResponseSchema,
   type ProviderStatus,
+  type ProviderUsage,
   providerStatusSchema,
   type ReloadResponse,
   type RouterStatus,
   reloadResponseSchema,
   routerStatusSchema,
+  type UsageResponse,
+  usageResponseSchema,
   type WorkspaceStatus,
   workspaceStatusSchema,
 } from '@llm-router/shared';
@@ -137,6 +140,28 @@ export function settings(overrides: Partial<EditableSettings> = {}): EditableSet
   });
 }
 
+/** What the local provider has been asked for: one busy chat model and one embedding model. */
+export const LOCAL_USAGE: ProviderUsage = {
+  provider: 'ollama',
+  requests: 42,
+  inputTokens: 1_250_300,
+  outputTokens: 340_120,
+  models: [
+    { upstreamId: 'nomic-embed-text', requests: 2, inputTokens: 300, outputTokens: 0 },
+    { upstreamId: 'qwen3:32b', requests: 40, inputTokens: 1_250_000, outputTokens: 340_120 },
+  ],
+};
+
+/**
+ * Builds the usage answer.
+ *
+ * @param [providers] - The providers that have been called; the local one alone when left out.
+ * @returns The answer, parsed through the shared schema.
+ */
+export function usage(providers: ProviderUsage[] = [LOCAL_USAGE]): UsageResponse {
+  return usageResponseSchema.parse({ providers });
+}
+
 /** What a reload answers. */
 export const RELOADED: ReloadResponse = reloadResponseSchema.parse({
   reloaded: true,
@@ -161,5 +186,6 @@ export function appRoutes(): ApiRoutes {
     'GET /api/workspaces': [workspace()],
     'GET /api/workspaces/research': workspace(),
     'GET /api/workspaces/research/models': WORKSPACE_MODELS,
+    'GET /api/usage': usage(),
   };
 }

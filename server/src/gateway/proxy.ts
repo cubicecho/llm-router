@@ -1,8 +1,11 @@
-import { Readable } from 'node:stream';
+import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import type { Request, Response } from 'express';
+import { USAGE_DEFAULTS } from '../core/defaults.ts';
 import { badInput, errorMessage, HttpError, upstreamFailed } from '../core/errors.ts';
 import { isRecord } from '../core/is-record.ts';
+import { UsageReader } from '../usage/reader.ts';
+import type { UsageStore } from '../usage/store.ts';
 import { type EndpointScope, exposesModel, type ScopeMember } from './endpoint-scope.ts';
 import { splitNamespacedModel } from './naming.ts';
 import { ModelNotFoundError } from './openai-error.ts';
@@ -27,6 +30,12 @@ const UNFORWARDED_RESPONSE_HEADERS = new Set([
 /** Path segments that would walk a provider URL out of its base path. */
 const DOT_SEGMENTS = new Set(['.', '..']);
 
+/** Paths under `/v1` whose streams report token counts only when `stream_options.include_usage` asks for them. */
+const STREAM_USAGE_PATHS = new Set(['chat/completions', 'completions']);
+
+/** The content type of a server-sent event stream. */
+const EVENT_STREAM_TYPE = 'text/event-stream';
+
 /** What one proxied call needs. */
 export interface ProxyCall {
   /** The providers the endpoint serves. */
@@ -37,6 +46,8 @@ export interface ProxyCall {
   fetch: UpstreamFetch;
   /** How long the provider may take to send response headers, in ms. */
   responseTimeoutMs: number;
+  /** Counts the request and the tokens the provider reports for it. */
+  usage: UsageStore;
 }
 
 /** A request body matched to the provider that serves its model. */
@@ -70,6 +81,42 @@ export function routeBody(scope: EndpointScope, body: unknown): RoutedBody {
 }
 
 /**
+ * Asks for token counts at the end of a streamed completion, which providers leave out unless asked.
+ *
+ * @param path - The path under `/v1`, e.g. `chat/completions`.
+ * @param body - The body about to be sent to the provider.
+ * @returns The body with `stream_options.include_usage` on, or the same body when it is not a streamed completion or
+ * the client already chose.
+ */
+export function withStreamUsage(path: string, body: Record<string, unknown>): Record<string, unknown> {
+  if (STREAM_USAGE_PATHS.has(path) === false || body.stream !== true) {
+    return body;
+  }
+  const options = isRecord(body.stream_options) ? body.stream_options : {};
+  if (options.include_usage !== undefined) {
+    return body;
+  }
+  return { ...body, stream_options: { ...options, include_usage: true } };
+}
+
+/**
+ * Reads a response header.
+ *
+ * @param upstream - The provider's response.
+ * @param wanted - The header's name, in lower case.
+ * @returns The header's value, or an empty string when the response has none.
+ */
+function responseHeader(upstream: UpstreamResponse, wanted: string): string {
+  let found = '';
+  upstream.headers.forEach((value, name) => {
+    if (name.toLowerCase() === wanted) {
+      found = value;
+    }
+  });
+  return found;
+}
+
+/**
  * Copies a provider's status and headers onto the client response, and sends them.
  *
  * @param upstream - The provider's response.
@@ -96,15 +143,18 @@ function forwardHead(upstream: UpstreamResponse, res: Response): void {
  *
  * @remarks
  * The provider's own status and body pass through untouched, errors included. A client that goes away aborts the
- * provider request.
+ * provider request. A streamed completion is sent on with `stream_options.include_usage` on, so the provider ends the
+ * stream with its token counts; every answered request is counted in `call.usage`.
  */
 export async function proxyToProvider(call: ProxyCall, req: Request, res: Response): Promise<void> {
-  const { scope, pathSegments, fetch, responseTimeoutMs } = call;
+  const { scope, pathSegments, fetch, responseTimeoutMs, usage } = call;
   if (pathSegments.some((segment) => DOT_SEGMENTS.has(segment))) {
     throw badInput(`"${req.path}" is not a path this endpoint forwards`);
   }
-  const { member, body } = routeBody(scope, req.body);
-  const { provider } = member;
+  const routed = routeBody(scope, req.body);
+  const { provider } = routed.member;
+  const upstreamId = String(routed.body.model);
+  const body = withStreamUsage(pathSegments.join('/'), routed.body);
   const path = pathSegments.map(encodeURIComponent).join('/');
   const { search } = new URL(req.originalUrl, 'http://router.invalid');
   const url = `${upstreamUrl(provider.baseUrl, path)}${search}`;
@@ -137,16 +187,35 @@ export async function proxyToProvider(call: ProxyCall, req: Request, res: Respon
 
   forwardHead(upstream, res);
   if (upstream.body === null) {
+    if (upstream.ok) {
+      usage.record(provider.name, upstreamId);
+    }
     res.end();
     return;
   }
+  // The body is read for its token counts as it goes by; the bytes sent on are the provider's own.
+  const reader = new UsageReader(
+    responseHeader(upstream, 'content-type').includes(EVENT_STREAM_TYPE),
+    USAGE_DEFAULTS.maxResponseBytes,
+  );
+  const tap = new Transform({
+    transform(chunk: Buffer, _encoding, done) {
+      reader.push(chunk);
+      done(null, chunk);
+    },
+  });
   try {
-    await pipeline(Readable.fromWeb(upstream.body), res);
+    await pipeline(Readable.fromWeb(upstream.body), tap, res);
   } catch (error) {
     // The head is sent, so there is no status left to report with: cut the connection and let the client see it.
     if (clientGone.signal.aborted === false) {
       console.warn(`[gateway] stream from provider "${provider.name}" broke: ${errorMessage(error)}`);
     }
     res.destroy();
+  } finally {
+    // An answer that was cut short still cost what it had reported by then. A provider's error is not counted.
+    if (upstream.ok) {
+      usage.record(provider.name, upstreamId, reader.result());
+    }
   }
 }
