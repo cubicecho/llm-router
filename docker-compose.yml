@@ -6,7 +6,7 @@ services:
       - '3000:3000'
     volumes:
       # Config files — hand-editable on the host; apply edits with
-      # POST /api/reload (or the Settings page). Must be writable by uid 1000.
+      # POST /api/reload (or the Settings page).
       - ./data:/data
     environment:
       # Set a bearer token, OR set SECURE_LOCAL_NET=true to disable auth on a

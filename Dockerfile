@@ -54,14 +54,11 @@ ENV NODE_ENV=production
 # The config files live under /data — mount a volume here to persist them.
 ENV DATA_DIR=/data
 
-# Created and owned by node before VOLUME: a new named volume is seeded from this directory, owner included.
-RUN mkdir -p /data && chown node:node /data
+RUN mkdir -p /data
 
 VOLUME /data
 
 EXPOSE 3000
-
-USER node
 
 # /healthz needs no token and answers 200 once the server is listening.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
