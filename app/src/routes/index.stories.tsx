@@ -1,7 +1,7 @@
 import { ErrorCode, HttpStatus } from '@llm-router/shared';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import { appRoutes, localProvider } from '@/storybook/fixtures';
+import { appRoutes, localProvider, models } from '@/storybook/fixtures';
 import { apiError, apiRequest, pending } from '@/storybook/mock-api';
 
 const PROVIDERS_ROUTE = 'GET /api/providers';
@@ -21,6 +21,8 @@ export const ListsTheProviders: Story = {
     await expect(await canvas.findByRole('link', { name: /Ollama/ })).toBeVisible();
     await expect(canvas.getByText('http://localhost:11434/v1')).toBeVisible();
     await expect(canvas.getByRole('link', { name: /openrouter/ })).toBeVisible();
+    // Each row counts the models its provider lists, which shows the connection works.
+    await waitFor(() => expect(canvas.getAllByText('2 models')).toHaveLength(2));
     // Only the hosted provider has a key, and neither key is on the page.
     await expect(canvas.getAllByText('key set')).toHaveLength(1);
     await expect(canvas.getByRole('heading', { name: 'Connect a client' })).toBeVisible();
@@ -70,6 +72,22 @@ export const WhenTheProvidersFail: Story = {
     const alert = within(await within(canvasElement).findByRole('alert'));
     await expect(alert.getByText('Could not load providers')).toBeVisible();
     await expect(alert.getByText('providers are unreadable')).toBeVisible();
+  },
+};
+
+export const FlagsAProviderThatCannotBeListed: Story = {
+  parameters: {
+    api: {
+      ...appRoutes(),
+      'GET /api/providers/ollama/models': () =>
+        models('ollama', [], [{ provider: 'ollama', error: 'connect ECONNREFUSED' }]),
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByText('listing failed')).toBeVisible();
+    // The other provider is unaffected.
+    await expect(await canvas.findByText('2 models')).toBeVisible();
   },
 };
 
