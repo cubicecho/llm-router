@@ -1,0 +1,88 @@
+import { RouteIcon } from 'lucide-react';
+import { Sidebar, SidebarSection } from '@/components/sidebar';
+import { SidebarLayout } from '@/components/split-layout';
+import { ThemePicker } from '@/components/ui/theme-picker';
+import type { SlotNode } from '@/lib/utils';
+
+/**
+ * The app's icon and name, as the sidebar header.
+ *
+ * @returns The brand mark.
+ */
+function Brand() {
+  return (
+    <span className="flex items-center gap-2 font-semibold">
+      <RouteIcon className="size-5" aria-hidden />
+      LLM Router
+    </span>
+  );
+}
+
+interface AppLayoutProps {
+  /** The places of the app as sidebar items, shown on wide screens. */
+  sidebarNavSlot: SlotNode;
+  /** The same places as bar items, shown on narrow screens. */
+  barNavSlot: SlotNode;
+  /** One line about the app's state, under the navigation. */
+  status?: string;
+  /** Actions that sit beside the theme picker. */
+  actionSlot?: SlotNode;
+  contentSlot: SlotNode;
+}
+
+/**
+ * The app's frame: brand, navigation, status, theme picker and the page.
+ *
+ * @param props.sidebarNavSlot - The places of the app as sidebar items, shown on wide screens.
+ * @param props.barNavSlot - The same places as bar items, shown on narrow screens.
+ * @param [props.status] - One line about the app's state, under the navigation.
+ * @param [props.actionSlot] - Actions that sit beside the theme picker.
+ * @param props.contentSlot - The page, which scrolls inside the frame.
+ * @returns The frame.
+ *
+ * @remarks
+ * It holds no data and no routing.
+ */
+export function AppLayout({ sidebarNavSlot, barNavSlot, status, actionSlot, contentSlot }: AppLayoutProps) {
+  return (
+    <SidebarLayout
+      // The frame is as tall as the screen, so a long page scrolls inside `main` and the navigation stays put.
+      className="h-svh"
+      sidebarPosition="start"
+      sidebarWidth="auto"
+      divider="none"
+      sidebarHideBelow="md"
+      sidebarSlot={
+        <Sidebar
+          label="Main"
+          headerSlot={<Brand />}
+          contentSlot={<SidebarSection as="nav" label="Main" contentSlot={sidebarNavSlot} />}
+          footerSlot={
+            <div className="flex flex-col gap-2">
+              {status && <span className="text-foreground/60 text-xs">{status}</span>}
+              <div className="flex items-center gap-1">
+                <div className="min-w-0 flex-1">
+                  <ThemePicker variant="compact" />
+                </div>
+                {actionSlot}
+              </div>
+            </div>
+          }
+        />
+      }
+      brandSlot={<RouteIcon className="size-5" aria-label="LLM Router" />}
+      navSlot={barNavSlot}
+      navLabel="Main"
+      status={status}
+      actionSlot={
+        <>
+          {actionSlot}
+          <div className="w-24">
+            <ThemePicker variant="compact" />
+          </div>
+        </>
+      }
+      contentSlot={<main className="flex min-h-0 flex-1 flex-col overflow-auto">{contentSlot}</main>}
+    />
+  );
+}
