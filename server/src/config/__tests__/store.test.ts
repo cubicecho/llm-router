@@ -16,18 +16,16 @@ const TEST_PROVIDER: ProviderConfig = {
 describe('ConfigStore', () => {
   let dataDir: string;
   let store: ConfigStore;
-  const envToken = process.env.LLM_ROUTER_TOKEN;
-
   beforeEach(async () => {
-    delete process.env.LLM_ROUTER_TOKEN;
+    // A developer's own .env must not decide whether a token is generated here.
+    vi.stubEnv('LLM_ROUTER_TOKEN', undefined);
+    vi.stubEnv('SECURE_LOCAL_NET', undefined);
     dataDir = await mkdtemp(path.join(tmpdir(), 'llm-router-test-'));
     store = new ConfigStore(dataDir);
   });
 
   afterEach(async () => {
-    if (envToken !== undefined) {
-      process.env.LLM_ROUTER_TOKEN = envToken;
-    }
+    vi.unstubAllEnvs();
     await store.close();
     await rm(dataDir, { recursive: true, force: true });
     vi.restoreAllMocks();
@@ -50,7 +48,7 @@ describe('ConfigStore', () => {
   });
 
   it('does not generate a token when LLM_ROUTER_TOKEN is set', async () => {
-    process.env.LLM_ROUTER_TOKEN = 'env-token';
+    vi.stubEnv('LLM_ROUTER_TOKEN', 'env-token');
     await store.init();
     expect(store.getSettings().authToken).toBeNull();
   });
