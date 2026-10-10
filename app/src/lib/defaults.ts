@@ -6,7 +6,7 @@ export interface PollingSettings {
   statusMs: number;
   /** How long a model listing is reused before it is fetched again, in ms. Fetching calls every provider in scope. */
   modelsStaleMs: number;
-  /** Request and token counts on the provider pages, in ms. */
+  /** Request and token counts on the provider and workspace pages, in ms. */
   usageMs: number;
 }
 
@@ -15,4 +15,15 @@ export const POLLING_DEFAULTS: Readonly<PollingSettings> = Object.freeze({
   statusMs: 15_000,
   modelsStaleMs: 60_000,
   usageMs: 15_000,
+});
+
+/** How much of the usage a card shows before it is asked for more. */
+export interface UsageViewSettings {
+  /** How many of the most recent days a usage card lists before "Show all days". */
+  recentDays: number;
+}
+
+/** What a usage card shows by default. */
+export const USAGE_VIEW_DEFAULTS: Readonly<UsageViewSettings> = Object.freeze({
+  recentDays: 14,
 });

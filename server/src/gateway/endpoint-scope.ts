@@ -12,6 +12,8 @@ export interface ScopeMember {
 export interface EndpointScope {
   /** Names the endpoint in logs. */
   label: string;
+  /** The workspace's slug; left out for the global endpoint. */
+  workspace?: string;
   members: ScopeMember[];
 }
 
@@ -44,7 +46,7 @@ export function workspaceScope(workspace: WorkspaceConfig, store: ConfigStore): 
       members.push({ provider, allowedModels: member.models });
     }
   }
-  return { label: `workspace "${workspace.slug}"`, members };
+  return { label: `workspace "${workspace.slug}"`, workspace: workspace.slug, members };
 }
 
 /**

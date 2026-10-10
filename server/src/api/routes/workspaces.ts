@@ -30,9 +30,10 @@ export function workspacePath(slug: string): string {
  *
  * @param deps.store - Holds the workspace and provider configs.
  * @param deps.catalog - Lists each member's models.
+ * @param deps.usage - Holds each workspace's counts, which follow a rename and outlive a delete.
  * @returns The router, with paths relative to /api/workspaces.
  */
-export function createWorkspaceRoutes({ store, catalog }: ApiDeps): Router {
+export function createWorkspaceRoutes({ store, catalog, usage }: ApiDeps): Router {
   const router = Router();
 
   const toWorkspaceStatus = (workspace: WorkspaceConfig): WorkspaceStatus => ({
@@ -114,6 +115,7 @@ export function createWorkspaceRoutes({ store, catalog }: ApiDeps): Router {
     await store.saveWorkspace(next);
     if (slug !== existing.slug) {
       await store.deleteWorkspace(existing.slug);
+      usage.renameWorkspace(existing.slug, slug);
     }
     res.json(toWorkspaceStatus(next));
   });
@@ -121,6 +123,7 @@ export function createWorkspaceRoutes({ store, catalog }: ApiDeps): Router {
   router.delete('/:slug', async (req, res) => {
     requireWorkspace(req.params.slug);
     await store.deleteWorkspace(req.params.slug);
+    usage.releaseWorkspace(req.params.slug);
     res.status(HttpStatus.NoContent).end();
   });
 

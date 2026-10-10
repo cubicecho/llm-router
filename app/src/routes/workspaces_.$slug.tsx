@@ -5,6 +5,7 @@ import { CardLayout } from '@/components/card-layout';
 import { ConfirmButton } from '@/components/confirm-button';
 import { ConnectCard } from '@/components/domain/endpoint/connect-card';
 import { ModelsCard } from '@/components/domain/model/models-card';
+import { UsageCard } from '@/components/domain/usage/usage-card';
 import { MembersCard } from '@/components/domain/workspace/members-card';
 import { WorkspaceDialog } from '@/components/domain/workspace/workspace-dialog';
 import { PageLayout } from '@/components/page-layout';
@@ -22,7 +23,7 @@ export const Route = createFileRoute('/workspaces_/$slug')({
   component: WorkspaceDetailPage,
 });
 
-/** The page of one workspace: its switch, its providers, the models it serves and how to call it. */
+/** The page of one workspace: its switch, its providers, the models it serves, its usage and how to call it. */
 function WorkspaceDetailPage() {
   const { slug } = Route.useParams();
   const navigate = useNavigate();
@@ -123,6 +124,8 @@ function WorkspaceDetailPage() {
                 description="What this workspace serves right now, by the id a client asks for."
                 emptyTitle="This workspace serves no models. Switch on a provider above."
               />
+
+              <UsageCard scope={{ workspace: slug }} />
 
               <ConnectCard
                 path={workspace.path}

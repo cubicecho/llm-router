@@ -11,6 +11,7 @@ import { ConfigStore } from '../../config/store.ts';
 import { SERVER_VERSION } from '../../core/version.ts';
 import { ModelCatalog } from '../../gateway/models.ts';
 import type { UpstreamFetch } from '../../gateway/upstream-fetch.ts';
+import { localDay } from '../../usage/day.ts';
 import { createApp } from '../app.ts';
 
 /** What a stub provider saw of one request. */
@@ -405,65 +406,113 @@ describe('LLM Router', () => {
   });
 
   describe('usage', () => {
-    const chat = (model: string, extra: Record<string, unknown> = {}) =>
-      authed(request(app).post('/v1/chat/completions')).send({ model, ...extra });
-    const getUsage = async () => (await authed(request(app).get('/api/usage'))).body.providers;
+    const chat = (model: string, extra: Record<string, unknown> = {}, base = '/v1') =>
+      authed(request(app).post(`${base}/chat/completions`)).send({ model, ...extra });
+    const getUsage = async () => (await authed(request(app).get('/api/usage'))).body;
+    const NOTHING = { providers: [], workspaces: [] };
 
     beforeEach(async () => {
       await addProvider({ name: 'alpha', baseUrl: alpha.baseUrl, apiKey: 'sk-alpha' });
       await addProvider({ name: 'beta', baseUrl: beta.baseUrl });
+      await authed(request(app).post('/api/workspaces')).send({ name: 'Team', members: { alpha: {} } });
     });
 
     it('is empty before any request', async () => {
-      expect(await getUsage()).toEqual([]);
+      expect(await getUsage()).toEqual(NOTHING);
     });
 
-    it('adds up requests and reported tokens per model and per provider', async () => {
+    it('adds up requests and reported tokens per model, per provider and per day', async () => {
       await chat('alpha/large');
       await chat('alpha/large');
       await chat('alpha/small', { stream: true });
       await authed(request(app).post('/v1/embeddings')).send({ model: 'beta/org/embed', input: 'x' });
+      const day = localDay(new Date());
 
-      expect(await getUsage()).toEqual([
+      expect(await getUsage()).toEqual({
+        providers: [
+          {
+            provider: 'alpha',
+            requests: 3,
+            inputTokens: 27,
+            outputTokens: 8,
+            models: [
+              { upstreamId: 'large', requests: 2, inputTokens: 22, outputTokens: 6 },
+              { upstreamId: 'small', requests: 1, inputTokens: 5, outputTokens: 2 },
+            ],
+            days: [{ day, requests: 3, inputTokens: 27, outputTokens: 8 }],
+          },
+          {
+            provider: 'beta',
+            requests: 1,
+            inputTokens: 4,
+            outputTokens: 0,
+            models: [{ upstreamId: 'org/embed', requests: 1, inputTokens: 4, outputTokens: 0 }],
+            days: [{ day, requests: 1, inputTokens: 4, outputTokens: 0 }],
+          },
+        ],
+        workspaces: [],
+      });
+    });
+
+    it('counts a workspace’s requests under the workspace and under the provider', async () => {
+      await chat('alpha/large', {}, '/w/team/v1');
+      await chat('alpha/large');
+      const day = localDay(new Date());
+
+      const usage = await getUsage();
+      expect(usage.providers).toMatchObject([{ provider: 'alpha', requests: 2, inputTokens: 22 }]);
+      expect(usage.workspaces).toEqual([
         {
-          provider: 'alpha',
-          requests: 3,
-          inputTokens: 27,
-          outputTokens: 8,
-          models: [
-            { upstreamId: 'large', requests: 2, inputTokens: 22, outputTokens: 6 },
-            { upstreamId: 'small', requests: 1, inputTokens: 5, outputTokens: 2 },
-          ],
-        },
-        {
-          provider: 'beta',
+          workspace: 'team',
           requests: 1,
-          inputTokens: 4,
-          outputTokens: 0,
-          models: [{ upstreamId: 'org/embed', requests: 1, inputTokens: 4, outputTokens: 0 }],
+          inputTokens: 11,
+          outputTokens: 3,
+          models: [{ provider: 'alpha', upstreamId: 'large', requests: 1, inputTokens: 11, outputTokens: 3 }],
+          days: [{ day, requests: 1, inputTokens: 11, outputTokens: 3 }],
         },
       ]);
     });
 
+    it('moves a renamed workspace’s counts to its new slug, and a deleted one’s stay with the provider', async () => {
+      await chat('alpha/large', {}, '/w/team/v1');
+      await authed(request(app).patch('/api/workspaces/team')).send({ name: 'Research' });
+      expect((await getUsage()).workspaces).toMatchObject([{ workspace: 'research', requests: 1 }]);
+
+      await authed(request(app).delete('/api/workspaces/research'));
+      const usage = await getUsage();
+      expect(usage.workspaces).toEqual([]);
+      expect(usage.providers).toMatchObject([{ provider: 'alpha', requests: 1 }]);
+    });
+
     it('counts a request without tokens when the provider reports none', async () => {
       await chat('alpha/small', { stream: true, stream_options: { include_usage: false } });
-      expect(await getUsage()).toMatchObject([{ provider: 'alpha', requests: 1, inputTokens: 0, outputTokens: 0 }]);
+      expect((await getUsage()).providers).toMatchObject([
+        { provider: 'alpha', requests: 1, inputTokens: 0, outputTokens: 0 },
+      ]);
     });
 
     it('does not count a provider’s error, or a request that never reached one', async () => {
       await chat('alpha/broken');
       await chat('ghost/model');
-      expect(await getUsage()).toEqual([]);
+      expect(await getUsage()).toEqual(NOTHING);
     });
 
     it('drops a deleted provider’s counts', async () => {
-      await chat('alpha/large');
+      await chat('alpha/large', {}, '/w/team/v1');
       await authed(request(app).delete('/api/providers/alpha'));
-      expect(await getUsage()).toEqual([]);
+      expect(await getUsage()).toEqual(NOTHING);
     });
 
-    it('requires the token', async () => {
+    it('resets every count', async () => {
+      await chat('alpha/large', {}, '/w/team/v1');
+      const reset = await authed(request(app).delete('/api/usage'));
+      expect(reset.status).toBe(204);
+      expect(await getUsage()).toEqual(NOTHING);
+    });
+
+    it('requires the token to read and to reset', async () => {
       expect((await request(app).get('/api/usage')).status).toBe(401);
+      expect((await request(app).delete('/api/usage')).status).toBe(401);
     });
   });
 });

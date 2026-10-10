@@ -26,6 +26,10 @@ export const ShowsTheWorkspace: Story = {
     await expect(await canvas.findByRole('switch', { name: 'Serve Ollama' })).toBeChecked();
     await expect(canvas.getByRole('switch', { name: 'Serve openrouter' })).toBeChecked();
     await expect(await canvas.findByText('openrouter/anthropic/claude-opus-5-5')).toBeVisible();
+    // What went through this workspace's endpoint, by the id a client asked for.
+    const usage = within(await canvas.findByRole('list', { name: 'Usage by model' }));
+    await expect(usage.getByText('ollama/qwen3:32b')).toBeVisible();
+    await expect(within(canvas.getByRole('list', { name: 'Usage by day' })).getByText('Oct 8, 2026')).toBeVisible();
     await expect(canvas.getByText('3 models')).toBeVisible();
     await expect(canvas.getByText(`${window.location.origin}/w/research/v1`)).toBeVisible();
     // The examples ask for a model the workspace really serves.

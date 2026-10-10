@@ -20,6 +20,7 @@ export const ListsTheWorkspaces: Story = {
     await expect(await canvas.findByRole('heading', { name: 'Workspaces', level: 1 })).toBeVisible();
     await expect(await canvas.findByRole('link', { name: /Research/ })).toBeVisible();
     await expect(canvas.getByText('/w/research/v1 · 2 providers')).toBeVisible();
+    await expect(await canvas.findByText('12 requests · 250.3K in · 40.1K out')).toBeVisible();
     await expect(canvas.getByText('enabled')).toBeVisible();
     await expect(canvas.getByRole('link', { name: 'Workspaces', current: 'page' })).toBeVisible();
     await expect(canvasElement.ownerDocument.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);

@@ -8,6 +8,7 @@ const STATUS_ROUTE = 'GET /api/status';
 const SETTINGS_ROUTE = 'GET /api/settings';
 const UPDATE_ROUTE = 'PATCH /api/settings';
 const RELOAD_ROUTE = 'POST /api/reload';
+const RESET_USAGE_ROUTE = 'DELETE /api/usage';
 /** The fixture's ten-minute response timeout, as the form shows it. */
 const STORED_TIMEOUT_SECONDS = 600;
 const ORIGINS = 'Allowed browser origins (one per line)';
@@ -170,5 +171,50 @@ export const WhenAReloadFails: Story = {
     const body = within(canvasElement.ownerDocument.body);
     await userEvent.click(await canvas.findByRole('button', { name: 'Reload config' }));
     await waitFor(() => expect(body.getByText('settings.json failed validation')).toBeVisible());
+  },
+};
+
+export const ResetsTheUsageCounts: Story = {
+  parameters: { api: { ...appRoutes(), [RESET_USAGE_ROUTE]: null } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(await canvas.findByRole('button', { name: 'Reset usage' }));
+    // It asks first, and says what is lost.
+    const dialog = within(await body.findByRole('alertdialog'));
+    await expect(dialog.getByText('Reset the usage counts?')).toBeVisible();
+    await expect(apiRequest).not.toHaveBeenCalledWith(RESET_USAGE_ROUTE, undefined);
+    await userEvent.click(dialog.getByRole('button', { name: 'Reset usage' }));
+    await waitFor(() => expect(apiRequest).toHaveBeenCalledWith(RESET_USAGE_ROUTE, undefined));
+    await waitFor(() => expect(body.getByText('Usage counts reset')).toBeVisible());
+  },
+};
+
+export const KeepsTheCountsWhenTheResetIsCancelled: Story = {
+  parameters: { api: { ...appRoutes(), [RESET_USAGE_ROUTE]: null } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(await canvas.findByRole('button', { name: 'Reset usage' }));
+    const dialog = within(await body.findByRole('alertdialog'));
+    await userEvent.click(dialog.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(body.queryByRole('alertdialog')).not.toBeInTheDocument());
+    await expect(apiRequest).not.toHaveBeenCalledWith(RESET_USAGE_ROUTE, undefined);
+  },
+};
+
+export const WhenAResetFails: Story = {
+  parameters: {
+    api: {
+      ...appRoutes(),
+      [RESET_USAGE_ROUTE]: apiError(HttpStatus.InternalServerError, ErrorCode.Internal, 'usage.json is not writable'),
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(await canvas.findByRole('button', { name: 'Reset usage' }));
+    await userEvent.click(within(await body.findByRole('alertdialog')).getByRole('button', { name: 'Reset usage' }));
+    await waitFor(() => expect(body.getByText('usage.json is not writable')).toBeVisible());
   },
 };

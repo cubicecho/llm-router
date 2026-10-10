@@ -302,8 +302,18 @@ export function getWorkspaceModels(slug: string): Promise<ModelsResponse> {
 /**
  * Reads the request and token counts from `GET /api/usage`.
  *
- * @returns Every provider that has been called, with its totals and its models.
+ * @returns Every provider that has been called and every workspace that has been called through, each with its
+ * totals, its models and its recent days.
  */
 export function getUsage(): Promise<UsageResponse> {
   return request('/api/usage', usageResponseSchema);
+}
+
+/**
+ * Starts every request and token count over with `DELETE /api/usage`.
+ *
+ * @returns Nothing; the router answers 204.
+ */
+export function resetUsage(): Promise<void> {
+  return requestNoContent('/api/usage', { method: 'DELETE' });
 }

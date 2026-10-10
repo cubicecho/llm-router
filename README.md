@@ -76,12 +76,22 @@ supports. Streams (SSE) pass straight through.
 
 ## Usage
 
-The router counts, per provider and per model, the requests a provider answered
-and the tokens it reported for them, in and out. The Providers page shows each
-provider's totals, a provider's page breaks them down by model, and
-`GET /api/usage` returns the same numbers. Counts are kept in
-`DATA_DIR/usage.json`, last across restarts, and are dropped when the provider
-is deleted.
+The router counts the requests a provider answered and the tokens it reported
+for them, in and out: per provider, per model, per workspace and per day. The
+Providers and Workspaces pages show each one's totals, a provider's or a
+workspace's page breaks them down by model and by day, and `GET /api/usage`
+returns the same numbers. Counts are kept in `DATA_DIR/usage.json` and last
+across restarts.
+
+- **Per workspace** is what went through that workspace's endpoint
+  (`/w/<slug>/v1`). A request to the plain `/v1` counts for its provider and
+  for no workspace. Renaming a workspace keeps its counts; deleting it leaves
+  them with the providers that answered.
+- **Per day** is the router's own calendar day, in its time zone. A day keeps
+  its own counts for 90 days and is then folded into the totals, so the totals
+  are all-time and the file stays small.
+- **Settings → Reset usage** (`DELETE /api/usage`) sets every count back to
+  zero. Deleting a provider drops its counts.
 
 The numbers are the provider's own (`usage` in its response). A request whose
 answer carries no usage is counted with no tokens, and a provider's error
@@ -104,8 +114,8 @@ A workspace's `members` maps a provider name to `{ "enabled": true, "models": [.
 Leave `models` out to serve everything the provider lists.
 
 `DATA_DIR/usage.json`, beside `config/`, holds the request and token counts. It
-is the router's to write: delete it, with the router stopped, to start the
-counts over.
+is the router's to write, not to edit by hand: **Settings → Reset usage**
+starts the counts over.
 
 | Environment variable | Does |
 | --- | --- |
@@ -163,8 +173,7 @@ so put credentials in the API key field.
   small, hand-editable and easy to back up.
 
 Not in this version: multipart endpoints (audio, files), model aliases,
-per-workspace keys, native non-OpenAI APIs, usage per workspace or per day,
-cost.
+per-workspace keys, native non-OpenAI APIs, cost.
 
 ## Development
 

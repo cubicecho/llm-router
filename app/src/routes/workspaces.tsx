@@ -6,6 +6,7 @@ import { ActionButton } from '@/components/action-button';
 import { CardLayout } from '@/components/card-layout';
 import { ConfirmButton } from '@/components/confirm-button';
 import { WorkspaceDialog } from '@/components/domain/workspace/workspace-dialog';
+import { WorkspaceUsageText } from '@/components/domain/workspace/workspace-usage-text';
 import { ListItem } from '@/components/list-item';
 import { EmptyState } from '@/components/page';
 import { PageLayout } from '@/components/page-layout';
@@ -26,7 +27,7 @@ export const Route = createFileRoute('/workspaces')({
 /** create → the New button; edit → a specific workspace; null → closed. */
 type DialogState = { mode: 'create' } | { mode: 'edit'; workspace: WorkspaceStatus } | null;
 
-/** The Workspaces page: every workspace with its path and provider count, and the create/edit dialog. */
+/** The Workspaces page: every workspace with its path, provider count and usage, and the create/edit dialog. */
 function WorkspacesPage() {
   const workspaces = useWorkspaces();
   const { data } = workspaces;
@@ -75,11 +76,14 @@ function WorkspacesPage() {
                           }
                           linkSlot={<Link to="/workspaces/$slug" params={{ slug: workspace.slug }} />}
                           meta={
-                            workspace.enabled ? (
-                              <Badge variant="positive">enabled</Badge>
-                            ) : (
-                              <Badge variant="secondary">disabled</Badge>
-                            )
+                            <span className="flex flex-wrap items-center justify-end gap-1">
+                              <WorkspaceUsageText slug={workspace.slug} />
+                              {workspace.enabled ? (
+                                <Badge variant="positive">enabled</Badge>
+                              ) : (
+                                <Badge variant="secondary">disabled</Badge>
+                              )}
+                            </span>
                           }
                           actionSlot={
                             <>

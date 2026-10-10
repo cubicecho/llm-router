@@ -76,6 +76,15 @@ A single story file: `cd app && npx vitest run -c vitest.stories.config.ts src/r
 - **`usage.json` sits outside `config/`** so the config watcher does not reload
   on every flush. Writes are debounced (`USAGE_DEFAULTS.flushDelayMs`) and
   flushed on shutdown. Deleting a provider drops its counts.
+- **Usage is one flat list of entries** keyed by day, workspace, provider and
+  model (`usage/store.ts`); every view in `GET /api/usage` is a sum over it. A
+  day is the server's local day (`usage/day.ts`). Days older than
+  `USAGE_DEFAULTS.detailDays` lose their day and stay in the totals, so a
+  provider's totals can exceed the sum of its `days`. An entry has no
+  `workspace` when the request came through the plain `/v1`.
+- **A workspace's usage follows its slug.** A rename moves the counts
+  (`renameWorkspace`), a delete keeps them under the providers
+  (`releaseWorkspace`). `DELETE /api/usage` resets everything.
 - **`app/src/routeTree.gen.ts` is committed.** CI type-checks before it builds,
   so the tree has to be there. Regenerate it with `npx vite build` in `app/`
   after adding or renaming a route (`tsr generate` crashes under Node 26).

@@ -13,6 +13,7 @@ import {
   type UsageResponse,
   usageResponseSchema,
   type WorkspaceStatus,
+  type WorkspaceUsage,
   workspaceStatusSchema,
 } from '@llm-router/shared';
 import type { ApiRoutes } from './mock-api.ts';
@@ -140,7 +141,7 @@ export function settings(overrides: Partial<EditableSettings> = {}): EditableSet
   });
 }
 
-/** What the local provider has been asked for: one busy chat model and one embedding model. */
+/** What the local provider has been asked for: one busy chat model and one embedding model, over two days. */
 export const LOCAL_USAGE: ProviderUsage = {
   provider: 'ollama',
   requests: 42,
@@ -150,16 +151,31 @@ export const LOCAL_USAGE: ProviderUsage = {
     { upstreamId: 'nomic-embed-text', requests: 2, inputTokens: 300, outputTokens: 0 },
     { upstreamId: 'qwen3:32b', requests: 40, inputTokens: 1_250_000, outputTokens: 340_120 },
   ],
+  days: [
+    { day: '2026-10-09', requests: 30, inputTokens: 1_000_000, outputTokens: 300_000 },
+    { day: '2026-10-08', requests: 12, inputTokens: 250_300, outputTokens: 40_120 },
+  ],
+};
+
+/** What went through the research workspace's endpoint: part of the local provider's chat traffic, on one day. */
+export const RESEARCH_USAGE: WorkspaceUsage = {
+  workspace: 'research',
+  requests: 12,
+  inputTokens: 250_300,
+  outputTokens: 40_120,
+  models: [{ provider: 'ollama', upstreamId: 'qwen3:32b', requests: 12, inputTokens: 250_300, outputTokens: 40_120 }],
+  days: [{ day: '2026-10-08', requests: 12, inputTokens: 250_300, outputTokens: 40_120 }],
 };
 
 /**
  * Builds the usage answer.
  *
- * @param [providers] - The providers that have been called; the local one alone when left out.
+ * @param [overrides] - The providers or the workspaces to answer with; the local provider and the research
+ * workspace when left out.
  * @returns The answer, parsed through the shared schema.
  */
-export function usage(providers: ProviderUsage[] = [LOCAL_USAGE]): UsageResponse {
-  return usageResponseSchema.parse({ providers });
+export function usage(overrides: Partial<UsageResponse> = {}): UsageResponse {
+  return usageResponseSchema.parse({ providers: [LOCAL_USAGE], workspaces: [RESEARCH_USAGE], ...overrides });
 }
 
 /** What a reload answers. */

@@ -231,7 +231,8 @@ export function useUpdateWorkspace() {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: ({ slug, ...body }: UpdateWorkspaceRequest & { slug: string }) => api.updateWorkspace(slug, body),
-    onSuccess: () => invalidate(...WORKSPACE_CHANGE_KEYS),
+    // A rename moves the workspace's counts to its new slug.
+    onSuccess: () => invalidate(...WORKSPACE_CHANGE_KEYS, queryKeys.usage),
   });
 }
 
@@ -244,7 +245,7 @@ export function useDeleteWorkspace() {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: (slug: string) => api.deleteWorkspace(slug),
-    onSuccess: () => invalidate(...WORKSPACE_CHANGE_KEYS),
+    onSuccess: () => invalidate(...WORKSPACE_CHANGE_KEYS, queryKeys.usage),
   });
 }
 
@@ -272,5 +273,18 @@ export function useReloadConfig() {
   return useMutation({
     mutationFn: () => api.reloadConfig(),
     onSuccess: () => queryClient.invalidateQueries(),
+  });
+}
+
+/**
+ * Starts every request and token count over.
+ *
+ * @returns The mutation; takes nothing and invalidates the usage.
+ */
+export function useResetUsage() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: () => api.resetUsage(),
+    onSuccess: () => invalidate(queryKeys.usage),
   });
 }

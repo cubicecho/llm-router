@@ -153,7 +153,7 @@ export async function proxyToProvider(call: ProxyCall, req: Request, res: Respon
   }
   const routed = routeBody(scope, req.body);
   const { provider } = routed.member;
-  const upstreamId = String(routed.body.model);
+  const served = { workspace: scope.workspace, provider: provider.name, upstreamId: String(routed.body.model) };
   const body = withStreamUsage(pathSegments.join('/'), routed.body);
   const path = pathSegments.map(encodeURIComponent).join('/');
   const { search } = new URL(req.originalUrl, 'http://router.invalid');
@@ -188,7 +188,7 @@ export async function proxyToProvider(call: ProxyCall, req: Request, res: Respon
   forwardHead(upstream, res);
   if (upstream.body === null) {
     if (upstream.ok) {
-      usage.record(provider.name, upstreamId);
+      usage.record(served);
     }
     res.end();
     return;
@@ -215,7 +215,7 @@ export async function proxyToProvider(call: ProxyCall, req: Request, res: Respon
   } finally {
     // An answer that was cut short still cost what it had reported by then. A provider's error is not counted.
     if (upstream.ok) {
-      usage.record(provider.name, upstreamId, reader.result());
+      usage.record(served, reader.result());
     }
   }
 }

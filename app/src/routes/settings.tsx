@@ -2,6 +2,7 @@ import { type EditableSettings, MS_PER_SECOND } from '@llm-router/shared';
 import { createFileRoute } from '@tanstack/react-router';
 import { NumberField, SwitchField, TextareaField, useAppForm } from '@/components/app-form';
 import { CardLayout } from '@/components/card-layout';
+import { ConfirmButton } from '@/components/confirm-button';
 import { DescriptionList, PropertyRow } from '@/components/description-list';
 import { PageLayout } from '@/components/page-layout';
 import { QueryError, QueryState } from '@/components/query-state';
@@ -9,11 +10,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Code, CodeBlock } from '@/components/ui/code';
 import { FormElement } from '@/components/ui/form-element';
-import { RefreshCw } from '@/components/ui/icons';
+import { RefreshCw, Trash2 } from '@/components/ui/icons';
 import { ThemePicker } from '@/components/ui/theme-picker';
 import { useToast } from '@/components/ui/toast';
 import { formatCount, formatDuration } from '@/lib/format';
-import { useReloadConfig, useRouterStatus, useSettings, useUpdateSettings } from '@/lib/queries';
+import { useReloadConfig, useResetUsage, useRouterStatus, useSettings, useUpdateSettings } from '@/lib/queries';
 import { apiErrorMessage } from '@/lib/toast';
 
 /** The `/settings` route. */
@@ -102,11 +103,15 @@ function SettingsForm({ settings }: { settings: EditableSettings }) {
   );
 }
 
-/** The Settings page: router status, the editable settings, the config-file layout with a reload, and the theme. */
+/**
+ * The Settings page: router status, the editable settings, the config-file layout with a reload, the usage reset, and
+ * the theme.
+ */
 function SettingsPage() {
   const status = useRouterStatus();
   const settings = useSettings();
   const reload = useReloadConfig();
+  const resetUsage = useResetUsage();
   const toast = useToast();
   const { data } = status;
 
@@ -117,6 +122,13 @@ function SettingsPage() {
           `Configuration reloaded: ${formatCount(reloaded.providerCount, 'provider')}, ${formatCount(reloaded.workspaceCount, 'workspace')}`,
           'positive',
         ),
+      onError: (error) => toast(apiErrorMessage(error)),
+    });
+  };
+
+  const handleResetUsage = () => {
+    resetUsage.mutate(undefined, {
+      onSuccess: () => toast('Usage counts reset', 'positive'),
       onError: (error) => toast(apiErrorMessage(error)),
     });
   };
@@ -207,6 +219,34 @@ function SettingsPage() {
                   />
                 </div>
               </>
+            }
+          />
+
+          <CardLayout
+            level={2}
+            title="Usage"
+            description={
+              <>
+                Request and token counts are kept in <Code>DATA_DIR/usage.json</Code>, per provider, model, workspace
+                and day.
+              </>
+            }
+            contentSlot={
+              <div>
+                <ConfirmButton
+                  variant="outline"
+                  label="Reset usage"
+                  tooltip={false}
+                  loading={resetUsage.isPending}
+                  loadingLabel="Resetting…"
+                  title="Reset the usage counts?"
+                  description="Every request and token count is set back to zero, for all providers, workspaces and days. This cannot be undone."
+                  confirmLabel="Reset usage"
+                  onConfirm={handleResetUsage}
+                  iconSlot={<Trash2 className="text-negative" />}
+                  content="Reset usage"
+                />
+              </div>
             }
           />
 

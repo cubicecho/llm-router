@@ -103,17 +103,48 @@ export const modelUsageSchema = tokenUsageSchema.extend({
 /** The usage of one model of a provider. */
 export type ModelUsage = z.infer<typeof modelUsageSchema>;
 
-/** The usage of one provider: its totals, and each model that has been called. */
+/** The usage of one day. */
+export const dayUsageSchema = tokenUsageSchema.extend({
+  /** The day as `YYYY-MM-DD`, in the router's own time zone. */
+  day: z.string(),
+});
+/** The usage of one day. */
+export type DayUsage = z.infer<typeof dayUsageSchema>;
+
+/**
+ * The usage of one provider: its totals, each model that has been called, and each recent day, newest first.
+ * The totals are all-time, so they can exceed the sum of `days`, which only go back as far as the router keeps them.
+ */
 export const providerUsageSchema = tokenUsageSchema.extend({
   provider: z.string(),
   models: z.array(modelUsageSchema),
+  days: z.array(dayUsageSchema),
 });
 /** The usage of one provider. */
 export type ProviderUsage = z.infer<typeof providerUsageSchema>;
 
-/** What `GET /api/usage` answers: every provider that has been called. */
+/** The usage of one model through one workspace. */
+export const workspaceModelUsageSchema = modelUsageSchema.extend({
+  /** The provider that served the model. */
+  provider: z.string(),
+});
+/** The usage of one model through one workspace. */
+export type WorkspaceModelUsage = z.infer<typeof workspaceModelUsageSchema>;
+
+/** The usage of one workspace's endpoint: its totals, each model called through it, and each recent day, newest first. */
+export const workspaceUsageSchema = tokenUsageSchema.extend({
+  /** The workspace's slug. */
+  workspace: z.string(),
+  models: z.array(workspaceModelUsageSchema),
+  days: z.array(dayUsageSchema),
+});
+/** The usage of one workspace's endpoint. */
+export type WorkspaceUsage = z.infer<typeof workspaceUsageSchema>;
+
+/** What `GET /api/usage` answers: every provider that has been called, and every workspace that has been called through. */
 export const usageResponseSchema = z.object({
   providers: z.array(providerUsageSchema),
+  workspaces: z.array(workspaceUsageSchema),
 });
 /** What `GET /api/usage` answers. */
 export type UsageResponse = z.infer<typeof usageResponseSchema>;

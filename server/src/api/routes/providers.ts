@@ -103,7 +103,7 @@ export function createProviderRoutes({ store, catalog, usage }: ApiDeps): Router
     await store.deleteProvider(name);
     await removeFromWorkspaces(name);
     catalog.forget(name);
-    usage.forget(name);
+    usage.forgetProvider(name);
     res.status(HttpStatus.NoContent).end();
   });
 

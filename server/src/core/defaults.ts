@@ -70,10 +70,13 @@ export interface UsageSettings {
   flushDelayMs: number;
   /** Largest non-streamed response body read for its token counts, in bytes. A larger one is forwarded and counted as a request only. */
   maxResponseBytes: number;
+  /** How many days keep their own counts, today included. Older days are folded into the all-time totals. */
+  detailDays: number;
 }
 
 /** The fixed usage settings this build ships with. */
 export const USAGE_DEFAULTS: Readonly<UsageSettings> = Object.freeze({
   flushDelayMs: 2000,
   maxResponseBytes: 8_388_608,
+  detailDays: 90,
 });
