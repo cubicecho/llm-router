@@ -39,9 +39,10 @@ export function useRouterStatus() {
 }
 
 /**
- * Reads every provider's request and token counts and keeps them polled.
+ * Reads the request and token counts and keeps them polled.
  *
- * @returns The query; `data.providers` holds each provider that has been called.
+ * @returns The query; `data.providers` holds each provider that has been called, `data.workspaces` each workspace
+ * that has been called through.
  */
 export function useUsage() {
   return useQuery({

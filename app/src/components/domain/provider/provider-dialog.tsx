@@ -52,11 +52,11 @@ export function ProviderDialog({ open, onOpenChange, provider }: ProviderDialogP
       };
       try {
         if (isEdit) {
-          // An edit sends the texts even when empty, which clears them: left out, the server would keep the old ones.
           const keyChange = value.shouldRemoveKey ? { apiKey: null } : {};
           const saved = await update.mutateAsync({
             name: provider.name,
             ...common,
+            // An edit sends the texts even when empty, which clears them: left out, the server would keep the old ones.
             displayName: value.displayName.trim(),
             description: value.description.trim(),
             ...(apiKey ? { apiKey } : keyChange),

@@ -317,8 +317,6 @@ export function getUsage(): Promise<UsageResponse> {
 
 /**
  * Starts every request and token count over with `DELETE /api/usage`.
- *
- * @returns Nothing; the router answers 204.
  */
 export function resetUsage(): Promise<void> {
   return requestNoContent('/api/usage', { method: 'DELETE' });

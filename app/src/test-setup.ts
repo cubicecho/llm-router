@@ -13,9 +13,7 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
 // jsdom's window.scrollTo throws "Not implemented"; some libraries call it.
 window.scrollTo = () => {};
 
-// Node >=22 exposes an experimental `localStorage` getter on globalThis that returns
-// undefined unless the process runs with --localstorage-file, and vitest's jsdom
-// environment does not override pre-existing globals. Shim a simple in-memory Storage.
+// Node's own `localStorage` global is undefined without --localstorage-file and jsdom does not replace it.
 if (typeof window.localStorage === 'undefined') {
   const store = new Map<string, string>();
   const storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem' | 'clear' | 'key' | 'length'> = {
