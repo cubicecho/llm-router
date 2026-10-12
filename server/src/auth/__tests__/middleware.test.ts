@@ -1,17 +1,9 @@
-import { ErrorCode, HttpStatus, type SettingsFile } from '@llm-router/shared';
+import { ErrorCode, HttpStatus } from '@llm-router/shared';
 import express from 'express';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
-import {
-  type AuthConfig,
-  createAuthMiddleware,
-  createOriginMiddleware,
-  effectiveAuth,
-  isLoopbackOrigin,
-  tokensEqual,
-} from '../middleware.ts';
-
-const STORED: Pick<SettingsFile, 'authEnabled' | 'authToken'> = { authEnabled: true, authToken: 'stored-token' };
+import type { AuthConfig } from '../../config/effective-auth.ts';
+import { createAuthMiddleware, createOriginMiddleware, isLoopbackOrigin, tokensEqual } from '../middleware.ts';
 
 /** Builds an app with one guarded route that answers 200. */
 function guarded(...guards: express.RequestHandler[]): express.Express {
@@ -21,28 +13,6 @@ function guarded(...guards: express.RequestHandler[]): express.Express {
   });
   return app;
 }
-
-describe('effectiveAuth', () => {
-  it('takes the settings as they are when the environment says nothing', () => {
-    expect(effectiveAuth(STORED, {})).toEqual({ enabled: true, token: 'stored-token' });
-  });
-
-  it('turns auth off for SECURE_LOCAL_NET, whatever settings.json says', () => {
-    expect(effectiveAuth(STORED, { SECURE_LOCAL_NET: 'true' }).enabled).toBe(false);
-  });
-
-  it('stays off when settings.json turns it off', () => {
-    expect(effectiveAuth({ authEnabled: false, authToken: null }, {}).enabled).toBe(false);
-  });
-
-  it('replaces the stored token with LLM_ROUTER_TOKEN', () => {
-    expect(effectiveAuth(STORED, { LLM_ROUTER_TOKEN: 'from-env' }).token).toBe('from-env');
-  });
-
-  it('has no token when neither holds one', () => {
-    expect(effectiveAuth({ authEnabled: true, authToken: null }, {}).token).toBeNull();
-  });
-});
 
 describe('tokensEqual', () => {
   it('matches identical tokens only', () => {
