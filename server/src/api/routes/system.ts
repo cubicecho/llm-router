@@ -7,7 +7,7 @@ import {
   updateSettingsRequestSchema,
 } from '@llm-router/shared';
 import { Router } from 'express';
-import { effectiveAuth } from '../../auth/middleware.ts';
+import { effectiveAuth } from '../../config/effective-auth.ts';
 import { SERVER_VERSION } from '../../core/version.ts';
 import type { ApiDeps } from '../deps.ts';
 

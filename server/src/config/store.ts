@@ -12,11 +12,11 @@ import {
   workspaceConfigSchema,
 } from '@llm-router/shared';
 import { type FSWatcher, watch } from 'chokidar';
-import { effectiveAuth } from '../auth/middleware.ts';
 import { CONFIG_DEFAULTS } from '../core/defaults.ts';
 import { errorMessage } from '../core/errors.ts';
 import { writeJsonAtomic } from '../core/write-json-atomic.ts';
 import { ConfigCollection } from './collection.ts';
+import { effectiveAuth } from './effective-auth.ts';
 import { parseConfigFile } from './parse-file.ts';
 
 /** Everything the config files hold, as last loaded. */

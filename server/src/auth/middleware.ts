@@ -1,36 +1,13 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
-import type { SettingsFile } from '@llm-router/shared';
 import type { RequestHandler, Response } from 'express';
-import { authDisabledByEnv, envToken } from '../config/env.ts';
+import type { AuthConfig } from '../config/effective-auth.ts';
 import { forbidden, type HttpError, sendError, unauthenticated } from '../core/errors.ts';
+
+// Until the tests that read these from here have moved.
+export { type AuthConfig, effectiveAuth } from '../config/effective-auth.ts';
 
 /** Writes a refusal in the envelope the path's callers expect. */
 export type ErrorResponder = (res: Response, error: HttpError) => void;
-
-/** The auth in force for a request. */
-export interface AuthConfig {
-  /** False lets every request through. */
-  enabled: boolean;
-  /** The bearer token to match; null means none is configured, so every request is refused while enabled. */
-  token: string | null;
-}
-
-/**
- * Resolves the auth actually in force: settings.json, as overridden by the environment.
- *
- * @param settings - The stored auth settings.
- * @param [env] - Read for `SECURE_LOCAL_NET`, which turns auth off, and `LLM_ROUTER_TOKEN`, which replaces the token.
- * @returns Whether auth is on, and the token to match.
- */
-export function effectiveAuth(
-  settings: Pick<SettingsFile, 'authEnabled' | 'authToken'>,
-  env?: NodeJS.ProcessEnv,
-): AuthConfig {
-  return {
-    enabled: settings.authEnabled && !authDisabledByEnv(env),
-    token: envToken(env) ?? settings.authToken,
-  };
-}
 
 /**
  * Compares two tokens in constant time, without leaking their length (it compares sha256 digests).
