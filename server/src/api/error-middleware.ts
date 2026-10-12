@@ -1,27 +1,10 @@
 import { type ApiError, ErrorCode } from '@llm-router/shared';
 import type { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
-import { badInput, HttpError, internal, sendError } from '../core/errors.ts';
-import { isRecord } from '../core/is-record.ts';
+import { badInput, exposedClientError, HttpError, internal, sendError } from '../core/errors.ts';
 
 /** What a 500 says. The cause goes to the log, never to the caller: it can name files on the host. */
 const INTERNAL_ERROR_MESSAGE = 'Internal server error';
-
-/**
- * Reads the status and message of an error Express's own middleware marked as safe to show.
- *
- * @param err - The thrown value.
- * @returns The status and message to send, or undefined for any other error.
- *
- * @remarks
- * Express raises these for a bad request, such as a malformed or oversized body.
- */
-export function exposedClientError(err: unknown): { status: number; message: string } | undefined {
-  if (isRecord(err) && err.expose === true && typeof err.status === 'number' && typeof err.message === 'string') {
-    return { status: err.status, message: err.message };
-  }
-  return undefined;
-}
 
 /**
  * Renders every thrown error as the JSON envelope { error, code, detail? }.

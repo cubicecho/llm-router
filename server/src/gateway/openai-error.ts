@@ -1,7 +1,6 @@
 import { ErrorCode, type OpenAiErrorBody } from '@llm-router/shared';
 import type { NextFunction, Request, Response } from 'express';
-import { exposedClientError } from '../api/error-middleware.ts';
-import { HttpError, internal } from '../core/errors.ts';
+import { exposedClientError, HttpError, internal } from '../core/errors.ts';
 
 /** OpenAI's error `type` for a request the caller got wrong. */
 const INVALID_REQUEST = 'invalid_request_error';

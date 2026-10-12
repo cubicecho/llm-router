@@ -1,5 +1,6 @@
 import { type ApiError, ErrorCode, HttpStatus } from '@llm-router/shared';
 import type { Response } from 'express';
+import { isRecord } from './is-record.ts';
 
 /** The HTTP status each error code is sent with. */
 const STATUS_BY_CODE = {
@@ -94,4 +95,20 @@ export function errorMessage(err: unknown): string {
     return err.message;
   }
   return String(err);
+}
+
+/**
+ * Reads the status and message of an error Express's own middleware marked as safe to show.
+ *
+ * @param err - The thrown value.
+ * @returns The status and message to send, or undefined for any other error.
+ *
+ * @remarks
+ * Express raises these for a bad request, such as a malformed or oversized body.
+ */
+export function exposedClientError(err: unknown): { status: number; message: string } | undefined {
+  if (isRecord(err) && err.expose === true && typeof err.status === 'number' && typeof err.message === 'string') {
+    return { status: err.status, message: err.message };
+  }
+  return undefined;
 }
