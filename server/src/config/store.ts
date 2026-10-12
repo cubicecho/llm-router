@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { existsSync } from 'node:fs';
-import { mkdir, readdir, readFile, rm } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
   type ProviderConfig,
@@ -16,6 +16,8 @@ import { effectiveAuth } from '../auth/middleware.ts';
 import { CONFIG_DEFAULTS } from '../core/defaults.ts';
 import { errorMessage } from '../core/errors.ts';
 import { writeJsonAtomic } from '../core/write-json-atomic.ts';
+import { ConfigCollection } from './collection.ts';
+import { parseConfigFile } from './parse-file.ts';
 
 /** Everything the config files hold, as last loaded. */
 export interface ConfigState {
@@ -42,12 +44,8 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
   readonly workspacesDir: string;
 
   private settings: SettingsFile = settingsFileSchema.parse({});
-  private providers = new Map<string, ProviderConfig>();
-  private workspaces = new Map<string, WorkspaceConfig>();
-  /** The file each provider was read from, by name, when that is not `providers/<name>.json`. */
-  private strayProviderFiles = new Map<string, string>();
-  /** The file each workspace was read from, by slug, when that is not `workspaces/<slug>.json`. */
-  private strayWorkspaceFiles = new Map<string, string>();
+  private readonly providers: ConfigCollection<ProviderConfig>;
+  private readonly workspaces: ConfigCollection<WorkspaceConfig>;
   private watcher: FSWatcher | null = null;
   private watchDebounce: NodeJS.Timeout | null = null;
 
@@ -62,12 +60,26 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
     this.configDir = path.join(dataDir, 'config');
     this.providersDir = path.join(this.configDir, 'providers');
     this.workspacesDir = path.join(this.configDir, 'workspaces');
+    this.providers = new ConfigCollection({
+      dir: this.providersDir,
+      kind: 'provider',
+      keyField: 'name',
+      parse: providerConfigSchema.parse.bind(providerConfigSchema),
+      keyOf: (provider) => provider.name,
+    });
+    this.workspaces = new ConfigCollection({
+      dir: this.workspacesDir,
+      kind: 'workspace',
+      keyField: 'slug',
+      parse: workspaceConfigSchema.parse.bind(workspaceConfigSchema),
+      keyOf: (workspace) => workspace.slug,
+    });
   }
 
   /** Create directories, seed defaults on first run and load everything. */
   async init(): Promise<void> {
-    await mkdir(this.providersDir, { recursive: true });
-    await mkdir(this.workspacesDir, { recursive: true });
+    await this.providers.init();
+    await this.workspaces.init();
     await this.loadAll();
   }
 
@@ -143,7 +155,7 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
    * @returns A new array, sorted by name.
    */
   getProviders(): ProviderConfig[] {
-    return [...this.providers.values()].sort((a, b) => a.name.localeCompare(b.name));
+    return this.providers.values().sort((a, b) => a.name.localeCompare(b.name));
   }
 
   /**
@@ -176,11 +188,7 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
    * @returns The config as validated. Throws when it fails validation.
    */
   async saveProvider(config: ProviderConfig): Promise<ProviderConfig> {
-    const parsed = providerConfigSchema.parse(config);
-    await writeJsonAtomic(this.providerFile(parsed.name), parsed);
-    await this.removeStrayFile(this.strayProviderFiles, parsed.name);
-    this.providers.set(parsed.name, parsed);
-    return parsed;
+    return this.providers.save(config);
   }
 
   /**
@@ -189,9 +197,7 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
    * @param name - The provider's name; an unknown one is not an error.
    */
   async deleteProvider(name: string): Promise<void> {
-    await rm(this.providerFile(name), { force: true });
-    await this.removeStrayFile(this.strayProviderFiles, name);
-    this.providers.delete(name);
+    await this.providers.delete(name);
   }
 
   /**
@@ -200,7 +206,7 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
    * @returns A new array, sorted by name.
    */
   getWorkspaces(): WorkspaceConfig[] {
-    return [...this.workspaces.values()].sort((a, b) => a.name.localeCompare(b.name));
+    return this.workspaces.values().sort((a, b) => a.name.localeCompare(b.name));
   }
 
   /**
@@ -220,11 +226,7 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
    * @returns The config as validated. Throws when it fails validation.
    */
   async saveWorkspace(config: WorkspaceConfig): Promise<WorkspaceConfig> {
-    const parsed = workspaceConfigSchema.parse(config);
-    await writeJsonAtomic(this.workspaceFile(parsed.slug), parsed);
-    await this.removeStrayFile(this.strayWorkspaceFiles, parsed.slug);
-    this.workspaces.set(parsed.slug, parsed);
-    return parsed;
+    return this.workspaces.save(config);
   }
 
   /**
@@ -233,54 +235,14 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
    * @param slug - The workspace's slug; an unknown one is not an error.
    */
   async deleteWorkspace(slug: string): Promise<void> {
-    await rm(this.workspaceFile(slug), { force: true });
-    await this.removeStrayFile(this.strayWorkspaceFiles, slug);
-    this.workspaces.delete(slug);
-  }
-
-  /**
-   * Removes the misnamed file an entry was read from, once its own file has been written or removed.
-   *
-   * @param strayFiles - The misnamed files by key; the key's entry is dropped.
-   * @param key - The provider name or workspace slug.
-   *
-   * @remarks
-   * Without this a hand-named file would come back on the next reload, undoing a delete or shadowing a save.
-   */
-  private async removeStrayFile(strayFiles: Map<string, string>, key: string): Promise<void> {
-    const stray = strayFiles.get(key);
-    if (stray === undefined) {
-      return;
-    }
-    await rm(stray, { force: true });
-    strayFiles.delete(key);
-  }
-
-  /**
-   * Names the file a provider's config is kept in.
-   *
-   * @param name - The provider's name.
-   * @returns The path of `providers/<name>.json`.
-   */
-  private providerFile(name: string): string {
-    return path.join(this.providersDir, `${name}.json`);
-  }
-
-  /**
-   * Names the file a workspace's config is kept in.
-   *
-   * @param slug - The workspace's slug.
-   * @returns The path of `workspaces/<slug>.json`.
-   */
-  private workspaceFile(slug: string): string {
-    return path.join(this.workspacesDir, `${slug}.json`);
+    await this.workspaces.delete(slug);
   }
 
   /** Replaces everything in memory with what the files hold, seeding settings.json when absent. */
   private async loadAll(): Promise<void> {
     this.settings = await this.loadSettings();
-    this.providers = await this.loadProviders();
-    this.workspaces = await this.loadWorkspaces();
+    await this.providers.load();
+    await this.workspaces.load();
   }
 
   /**
@@ -297,7 +259,7 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
     let settings: SettingsFile;
     let dirty = false;
     if (existsSync(file)) {
-      settings = this.parseFile(file, await readFile(file, 'utf8'), settingsFileSchema.parse.bind(settingsFileSchema));
+      settings = parseConfigFile(file, await readFile(file, 'utf8'), settingsFileSchema.parse.bind(settingsFileSchema));
     } else {
       settings = settingsFileSchema.parse({});
       dirty = true;
@@ -314,92 +276,5 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
       await writeJsonAtomic(file, settings);
     }
     return settings;
-  }
-
-  /**
-   * Reads every `providers/*.json`, logging and skipping a file that is invalid.
-   *
-   * @returns The configs by the `name` inside each file, which wins over a file name that disagrees.
-   */
-  private async loadProviders(): Promise<Map<string, ProviderConfig>> {
-    const providers = new Map<string, ProviderConfig>();
-    this.strayProviderFiles = new Map();
-    const files = (await readdir(this.providersDir)).filter((f) => f.endsWith('.json'));
-    for (const file of files.sort()) {
-      const fullPath = path.join(this.providersDir, file);
-      try {
-        const config = this.parseFile(
-          fullPath,
-          await readFile(fullPath, 'utf8'),
-          providerConfigSchema.parse.bind(providerConfigSchema),
-        );
-        if (`${config.name}.json` !== file) {
-          console.warn(
-            `[config] provider config ${fullPath} has name "${config.name}" that does not match its filename`,
-          );
-          this.strayProviderFiles.set(config.name, fullPath);
-        }
-        providers.set(config.name, config);
-      } catch (err) {
-        // A single broken (hand-edited) provider file must not take the router down; report and skip it.
-        console.error(`[config] ignoring invalid provider config ${fullPath}: ${errorMessage(err)}`);
-      }
-    }
-    return providers;
-  }
-
-  /**
-   * Reads every `workspaces/*.json`, logging and skipping a file that is invalid.
-   *
-   * @returns The configs by the `slug` inside each file, which wins over a file name that disagrees.
-   */
-  private async loadWorkspaces(): Promise<Map<string, WorkspaceConfig>> {
-    const workspaces = new Map<string, WorkspaceConfig>();
-    this.strayWorkspaceFiles = new Map();
-    const files = (await readdir(this.workspacesDir)).filter((f) => f.endsWith('.json'));
-    for (const file of files.sort()) {
-      const fullPath = path.join(this.workspacesDir, file);
-      try {
-        const config = this.parseFile(
-          fullPath,
-          await readFile(fullPath, 'utf8'),
-          workspaceConfigSchema.parse.bind(workspaceConfigSchema),
-        );
-        if (`${config.slug}.json` !== file) {
-          console.warn(
-            `[config] workspace config ${fullPath} has slug "${config.slug}" that does not match its filename`,
-          );
-          this.strayWorkspaceFiles.set(config.slug, fullPath);
-        }
-        workspaces.set(config.slug, config);
-      } catch (err) {
-        // A single broken (hand-edited) workspace file must not take the router down; report and skip it.
-        console.error(`[config] ignoring invalid workspace config ${fullPath}: ${errorMessage(err)}`);
-      }
-    }
-    return workspaces;
-  }
-
-  /**
-   * Parses and validates one config file's text.
-   *
-   * @typeParam T - The validated shape.
-   * @param file - The file's path, named in the error.
-   * @param raw - The file's text.
-   * @param parse - Validates the parsed JSON; throws to reject it.
-   * @returns The validated value. Throws an Error naming the file when the JSON or the validation fails.
-   */
-  private parseFile<T>(file: string, raw: string, parse: (value: unknown) => T): T {
-    let json: unknown;
-    try {
-      json = JSON.parse(raw);
-    } catch (cause) {
-      throw new Error(`${file} is not valid JSON: ${errorMessage(cause)}`, { cause });
-    }
-    try {
-      return parse(json);
-    } catch (cause) {
-      throw new Error(`${file} failed validation: ${errorMessage(cause)}`, { cause });
-    }
   }
 }
