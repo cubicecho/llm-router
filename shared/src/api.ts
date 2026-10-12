@@ -5,6 +5,7 @@ import {
   providerNameSchema,
   workspaceConfigSchema,
   workspaceMemberSchema,
+  workspaceSlugSchema,
 } from './config.ts';
 import { NAME_DEFAULTS } from './defaults.ts';
 import { ErrorCode } from './wire.ts';
@@ -161,7 +162,7 @@ export type WorkspaceStatus = z.infer<typeof workspaceStatusSchema>;
 export const createWorkspaceRequestSchema = z.object({
   name: z.string().min(1).max(NAME_DEFAULTS.workspaceNameMaxLength),
   /** Slug for the URL; derived from `name` when omitted. */
-  slug: providerNameSchema.optional(),
+  slug: workspaceSlugSchema.optional(),
   enabled: z.boolean().optional(),
   description: z.string().optional(),
   /** Members keyed by provider name; only listed providers are in the workspace. */

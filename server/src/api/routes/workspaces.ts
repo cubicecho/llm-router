@@ -2,12 +2,12 @@ import {
   createWorkspaceRequestSchema,
   HttpStatus,
   type ModelsResponse,
-  providerNameSchema,
   slugify,
   updateWorkspaceRequestSchema,
   type WorkspaceConfig,
   type WorkspaceStatus,
   workspaceConfigSchema,
+  workspaceSlugSchema,
 } from '@llm-router/shared';
 import { Router } from 'express';
 import { badInput, conflict, notFound } from '../../core/errors.ts';
@@ -59,7 +59,7 @@ export function createWorkspaceRoutes({ store, catalog, usage }: ApiDeps): Route
   };
 
   const requireValidSlug = (slug: string): string => {
-    const parsed = providerNameSchema.safeParse(slug);
+    const parsed = workspaceSlugSchema.safeParse(slug);
     if (parsed.success === false) {
       throw badInput(`Invalid workspace slug "${slug}"`, 'derive a name that yields a valid URL slug');
     }
