@@ -122,9 +122,15 @@ async function request<Schema extends z.ZodType>(
   options: RequestOptions = {},
 ): Promise<z.infer<Schema>> {
   const response = await send(path, options);
-  const result = schema.safeParse(await response.json());
+  const unexpectedResponse = (cause: unknown) =>
+    new Error(`Unexpected response from ${options.method ?? 'GET'} ${path}`, { cause });
+  // A 2xx that is not JSON, such as a proxy's HTML page, is the same failure as one of the wrong shape.
+  const body: unknown = await response.json().catch((cause: unknown) => {
+    throw unexpectedResponse(cause);
+  });
+  const result = schema.safeParse(body);
   if (result.success === false) {
-    throw new Error(`Unexpected response from ${options.method ?? 'GET'} ${path}`, { cause: result.error });
+    throw unexpectedResponse(result.error);
   }
   return result.data;
 }
