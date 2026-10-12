@@ -3,9 +3,6 @@ import type { RequestHandler, Response } from 'express';
 import type { AuthConfig } from '../config/effective-auth.ts';
 import { forbidden, type HttpError, sendError, unauthenticated } from '../core/errors.ts';
 
-// Until the tests that read these from here have moved.
-export { type AuthConfig, effectiveAuth } from '../config/effective-auth.ts';
-
 /** Writes a refusal in the envelope the path's callers expect. */
 export type ErrorResponder = (res: Response, error: HttpError) => void;
 
