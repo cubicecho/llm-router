@@ -1,12 +1,12 @@
 import type { ProviderStatus, WorkspaceStatus } from '@llm-router/shared';
-import { useState } from 'react';
 import { useAppForm } from '@/components/app-form';
 import { DialogLayout } from '@/components/dialog-layout';
+import { FormDialogFooter } from '@/components/layouts/form-dialog-footer';
 import { MultiSelectField } from '@/components/multi-select-field';
 import { Alert } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
 import { FormElement } from '@/components/ui/form-element';
 import { useToast } from '@/components/ui/toast';
+import { unsavedChangesOf, useServerError } from '@/lib/form-dialog';
 import { providerLabel } from '@/lib/provider-label';
 import { useProviderModels, useUpdateWorkspace } from '@/lib/queries';
 import { apiErrorMessage } from '@/lib/toast';
@@ -33,7 +33,7 @@ export function MemberModelsDialog({ open, onOpenChange, workspace, provider }: 
   const update = useUpdateWorkspace();
   const toast = useToast();
   const listing = useProviderModels(provider.name);
-  const [serverError, setServerError] = useState<string>();
+  const { serverError, submit } = useServerError();
   const member = workspace.members[provider.name];
   const stored = member?.models ?? [];
   const label = providerLabel(provider);
@@ -45,19 +45,16 @@ export function MemberModelsDialog({ open, onOpenChange, workspace, provider }: 
 
   const form = useAppForm({
     defaultValues: { models: stored as readonly string[] },
-    onSubmit: async ({ value }) => {
-      setServerError(undefined);
+    onSubmit: ({ value }) => {
       const models = value.models.length > 0 ? [...value.models] : undefined;
-      try {
+      return submit(async () => {
         await update.mutateAsync({
           slug: workspace.slug,
           members: { ...workspace.members, [provider.name]: { enabled: member?.enabled ?? true, models } },
         });
         toast(`Saved the models of ${label}`, 'positive');
         onOpenChange(false);
-      } catch (error) {
-        setServerError(apiErrorMessage(error));
-      }
+      });
     },
   });
 
@@ -67,14 +64,16 @@ export function MemberModelsDialog({ open, onOpenChange, workspace, provider }: 
       onOpenChange={onOpenChange}
       title={`Models of ${label}`}
       description={`Which of this provider's models ${workspace.name} serves.`}
-      hasUnsavedChanges={() => form.state.isDefaultValue === false}
+      hasUnsavedChanges={unsavedChangesOf(form)}
       footerActionsSlot={(close) => (
-        <>
-          <Button type="button" variant="outline" onClick={close} content="Cancel" />
-          <form.AppForm>
-            <form.SubmitButton form={FORM_ID} content="Save models" />
-          </form.AppForm>
-        </>
+        <FormDialogFooter
+          onCancel={close}
+          submitSlot={
+            <form.AppForm>
+              <form.SubmitButton form={FORM_ID} content="Save models" />
+            </form.AppForm>
+          }
+        />
       )}
       contentSlot={
         <FormElement id={FORM_ID} onSubmit={() => form.handleSubmit()} className="gap-5">
