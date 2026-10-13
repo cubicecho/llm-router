@@ -1,11 +1,7 @@
+// Schemas for the flat config files stored under DATA_DIR/config. The files are hand-editable, so parsing is always
+// lenient on unknown keys and what a user added survives a round trip.
 import { z } from 'zod';
 import { NAME_DEFAULTS, SETTINGS_DEFAULTS } from './defaults.ts';
-
-/**
- * Schemas for the flat config files stored under DATA_DIR/config.
- * These files are hand-editable; parsing is always lenient on unknown keys
- * so user additions survive round-trips.
- */
 
 /** Splits a routed model id into its provider and the provider's own id: `<provider>/<model>`. */
 export const MODEL_SEPARATOR = '/';

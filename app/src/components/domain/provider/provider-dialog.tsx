@@ -11,10 +11,13 @@ import { linesToRecord, malformedLines, recordToLines } from '@/lib/key-value';
 import { useCreateProvider, useUpdateProvider } from '@/lib/queries';
 import { apiErrorMessage } from '@/lib/toast';
 
+/** Ties the submit button in the footer to the form in the body. */
 const FORM_ID = 'provider-form';
 
 interface ProviderDialogProps {
+  /** Whether the dialog is showing. */
   open: boolean;
+  /** Called when the dialog asks to open or close. */
   onOpenChange: (open: boolean) => void;
   /** Present when editing an existing provider; omitted when adding one. */
   provider?: ProviderStatus;

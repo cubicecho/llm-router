@@ -77,7 +77,7 @@ export const unavailable = factoryFor(ErrorCode.Unavailable);
 export const upstreamTimeout = factoryFor(ErrorCode.UpstreamTimeout);
 
 /**
- * Send an error as the JSON envelope, with the status its code maps to.
+ * Sends an error as the JSON envelope, with the status its code maps to.
  *
  * @param res - The response to write.
  * @param error - The error to render.
@@ -88,7 +88,7 @@ export function sendError(res: Response, error: HttpError): void {
 }
 
 /**
- * Extract a human-readable message from an unknown thrown value.
+ * Extracts a human-readable message from an unknown thrown value.
  *
  * @param err - The thrown value.
  * @returns An Error's message, or the value as a string.

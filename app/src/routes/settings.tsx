@@ -22,6 +22,7 @@ export const Route = createFileRoute('/settings')({
   component: SettingsPage,
 });
 
+/** The layout of the config directory, as the settings page draws it. */
 const CONFIG_TREE = `config/
 ├── settings.json        # port, auth token, auth enabled, timeouts, allowed origins
 ├── providers/

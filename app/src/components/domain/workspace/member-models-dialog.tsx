@@ -11,11 +11,15 @@ import { providerLabel } from '@/lib/provider-label';
 import { useProviderModels, useUpdateWorkspace } from '@/lib/queries';
 import { apiErrorMessage } from '@/lib/toast';
 
+/** Ties the submit button in the footer to the form in the body. */
 const FORM_ID = 'member-models-form';
 
 interface MemberModelsDialogProps {
+  /** Whether the dialog is showing. */
   open: boolean;
+  /** Called when the dialog asks to open or close. */
   onOpenChange: (open: boolean) => void;
+  /** The workspace the member belongs to. */
   workspace: WorkspaceStatus;
   /** The member whose models are chosen. */
   provider: ProviderStatus;

@@ -38,7 +38,7 @@ export interface AppDeps {
 }
 
 /**
- * Build the Express app (separate from listen() so tests can drive it with supertest).
+ * Builds the Express app (separate from listen() so tests can drive it with supertest).
  *
  * @param deps - The store, plus the test overrides.
  * @returns The app: /healthz, /api, /v1, /w/<slug>/v1, and the built web UI when its directory exists.

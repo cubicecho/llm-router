@@ -82,7 +82,7 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
     });
   }
 
-  /** Create directories, seed defaults on first run and load everything. */
+  /** Creates the directories, seeds the defaults on first run and loads everything. */
   async init(): Promise<void> {
     await this.providers.init();
     await this.workspaces.init();
@@ -100,7 +100,7 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
     return this.snapshot();
   }
 
-  /** Start watching the config dir; emits 'change' (debounced) after reloading. A no-op when already watching. */
+  /** Starts watching the config dir; emits 'change' (debounced) after reloading. A no-op when already watching. */
   startWatching(): void {
     if (this.watcher) {
       return;
@@ -121,7 +121,7 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
     });
   }
 
-  /** Stop watching the config dir and drop any reload still waiting on the debounce. */
+  /** Stops watching the config dir and drops any reload still waiting on the debounce. */
   async close(): Promise<void> {
     if (this.watchDebounce) {
       clearTimeout(this.watchDebounce);
@@ -175,7 +175,7 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
   }
 
   /**
-   * Merge a partial settings update, persist settings.json, and apply it in memory.
+   * Merges a partial settings update, persists settings.json, and applies it in memory.
    *
    * @param patch - The fields to change; the rest keep their values.
    * @returns The merged settings. Throws, changing nothing, when the result fails validation.

@@ -38,7 +38,7 @@ export class ModelNotFoundError extends HttpError {
 }
 
 /**
- * Send an error as OpenAI's JSON envelope, with the status its code maps to.
+ * Sends an error as OpenAI's JSON envelope, with the status its code maps to.
  *
  * @param res - The response to write.
  * @param error - The error to render.

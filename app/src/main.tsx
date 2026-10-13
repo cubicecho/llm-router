@@ -7,6 +7,7 @@ import { routeTree } from './routeTree.gen.ts';
 import './index.css';
 import { HttpStatus } from '@llm-router/shared';
 
+/** The one query cache of the app. A request the router refused is not retried: asking again changes nothing. */
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -25,6 +26,7 @@ const queryClient = new QueryClient({
   },
 });
 
+/** The app's router, over the generated route tree. */
 const router = createRouter({ routeTree });
 
 declare module '@tanstack/react-router' {

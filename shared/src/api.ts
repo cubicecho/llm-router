@@ -1,3 +1,5 @@
+// DTOs for the management REST API (/api/*). Every endpoint requires `Authorization: Bearer <token>` unless auth is
+// disabled.
 import { z } from 'zod';
 import {
   httpUrlSchema,
@@ -9,11 +11,6 @@ import {
 } from './config.ts';
 import { NAME_DEFAULTS } from './defaults.ts';
 import { ErrorCode } from './wire.ts';
-
-/**
- * DTOs for the management REST API (/api/*).
- * All endpoints require `Authorization: Bearer <token>` unless auth is disabled.
- */
 
 /** A provider as the API returns it: its stored config without the key, plus whether one is stored. */
 export const providerStatusSchema = providerConfigSchema.omit({ apiKey: true }).extend({

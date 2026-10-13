@@ -10,10 +10,13 @@ import { useToast } from '@/components/ui/toast';
 import { useCreateWorkspace, useUpdateWorkspace } from '@/lib/queries';
 import { apiErrorMessage } from '@/lib/toast';
 
+/** Ties the submit button in the footer to the form in the body. */
 const FORM_ID = 'workspace-form';
 
 interface WorkspaceDialogProps {
+  /** Whether the dialog is showing. */
   open: boolean;
+  /** Called when the dialog asks to open or close. */
   onOpenChange: (open: boolean) => void;
   /** Present when editing an existing workspace; omitted when creating. */
   workspace?: WorkspaceStatus;

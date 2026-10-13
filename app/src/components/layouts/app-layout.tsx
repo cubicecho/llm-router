@@ -4,11 +4,7 @@ import { SidebarLayout } from '@/components/split-layout';
 import { ThemePicker } from '@/components/ui/theme-picker';
 import type { SlotNode } from '@/lib/utils';
 
-/**
- * The app's icon and name, as the sidebar header.
- *
- * @returns The brand mark.
- */
+/** The app's icon and name, as the sidebar header. */
 function Brand() {
   return (
     <span className="flex items-center gap-2 font-semibold">
@@ -27,18 +23,13 @@ interface AppLayoutProps {
   status?: string;
   /** Actions that sit beside the theme picker. */
   actionSlot?: SlotNode;
+  /** The page, which scrolls inside the frame. */
   contentSlot: SlotNode;
 }
 
 /**
  * The app's frame: brand, navigation, status, theme picker and the page.
  *
- * @param props.sidebarNavSlot - The places of the app as sidebar items, shown on wide screens.
- * @param props.barNavSlot - The same places as bar items, shown on narrow screens.
- * @param [props.status] - One line about the app's state, under the navigation.
- * @param [props.actionSlot] - Actions that sit beside the theme picker.
- * @param props.contentSlot - The page, which scrolls inside the frame.
- * @returns The frame.
  *
  * @remarks
  * It holds no data and no routing.

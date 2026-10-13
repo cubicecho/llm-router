@@ -115,7 +115,7 @@ export function outboundKeepAliveTimeoutMs(env: NodeJS.ProcessEnv = process.env)
 }
 
 /**
- * Refuse to start with the placeholder token from `.env.example`.
+ * Refuses to start with the placeholder token from `.env.example`.
  *
  * @param [env] - The process environment.
  * @throws When `LLM_ROUTER_TOKEN` is the placeholder and auth is on.

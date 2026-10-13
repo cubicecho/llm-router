@@ -13,10 +13,14 @@ import { endpointUrl } from '@/lib/endpoint';
 import { useRouterStatus } from '@/lib/queries';
 import { COPY_FAILED_MESSAGE } from '@/lib/toast';
 
+/** Stands in for the token when the browser holds none. */
 const TOKEN_PLACEHOLDER = '<YOUR_TOKEN>';
+/** Shown in place of the token until it is revealed. */
 const TOKEN_MASK = '••••••••••••';
+/** Stands in for a model id when the endpoint serves none yet. */
 const MODEL_PLACEHOLDER = '<provider>/<model>';
 
+/** The examples the card shows, in order. */
 const SNIPPETS = [
   { title: 'Environment', build: envSnippet },
   { title: 'curl', build: curlSnippet },

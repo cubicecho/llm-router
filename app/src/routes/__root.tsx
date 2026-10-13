@@ -18,19 +18,21 @@ export const Route = createRootRoute({
   component: RootComponent,
 });
 
+/** The places of the app, in the order the navigation lists them. */
 const NAV_ITEMS = [
   { to: '/', label: 'Providers', icon: ServerIcon },
   { to: '/workspaces', label: 'Workspaces', icon: LayersIcon },
   { to: '/settings', label: 'Settings', icon: Settings },
 ] as const;
 
+/** A sidebar item that navigates like a router link. */
 const SidebarLink = createLink(SidebarNavItem);
+/** A bar item that navigates like a router link. */
 const BarLink = createLink(BarNavItem);
 
 /**
- * The root of every screen: the token screen while the router wants a token, else the app frame.
- *
- * @returns The screen, with the tooltip and toast providers around it.
+ * The root of every screen: the token screen while the router wants a token, else the app frame, with the tooltip and
+ * toast providers around it.
  */
 function RootComponent() {
   // Applies the stored theme on every screen and keeps System in step with the device.
@@ -53,8 +55,6 @@ function RootComponent() {
 
 /**
  * The signed-in app: the layout with its navigation, the provider and workspace counts, the lock button and the page.
- *
- * @returns The frame around the matched route.
  *
  * @remarks
  * The lock button is offered only when the router reports auth as enabled.

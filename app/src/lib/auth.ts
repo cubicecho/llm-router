@@ -1,10 +1,6 @@
+// Bearer-token storage plus a tiny external store for the token and the "needs auth" flag. The fetch wrapper raises
+// the flag on any 401; the root layout watches it and swaps in the token-entry screen.
 import { useSyncExternalStore } from 'react';
-
-/**
- * Bearer-token storage plus a tiny external store for the token and the "needs auth" flag.
- * The fetch wrapper flips the flag on any 401; the root layout watches it and
- * swaps in the token-entry screen.
- */
 
 /** The `localStorage` key the bearer token is kept under. */
 export const TOKEN_STORAGE_KEY = 'llm-router-token';
@@ -12,7 +8,9 @@ export const TOKEN_STORAGE_KEY = 'llm-router-token';
 /** A subscriber to the token and the needs-auth flag. */
 type Listener = () => void;
 
+/** Whether the router has refused the stored token, or there is none and it wants one. */
 let needsAuth = false;
+/** Everyone to tell when the token or the flag changes. */
 const listeners = new Set<Listener>();
 
 /** Tells every subscriber the token or the needs-auth flag changed. */

@@ -4,13 +4,13 @@ import { PasswordField } from '@/components/password-field';
 import { Code } from '@/components/ui/code';
 import { KeyRound } from '@/components/ui/icons';
 
-/**
- * The token-entry screen shown when the router asks for its bearer token.
- *
- * @param props.onUnlock - Called with the trimmed token when the form is submitted with one.
- * @returns The screen.
- */
-export function TokenForm({ onUnlock }: { onUnlock: (token: string) => void }) {
+interface TokenFormProps {
+  /** Called with the trimmed token when the form is submitted with one. */
+  onUnlock: (token: string) => void;
+}
+
+/** The token-entry screen shown when the router asks for its bearer token. */
+export function TokenForm({ onUnlock }: TokenFormProps) {
   const form = useAppForm({
     defaultValues: { token: '' },
     onSubmit: ({ value, formApi }) => {

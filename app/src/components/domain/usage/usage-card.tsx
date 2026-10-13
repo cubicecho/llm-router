@@ -31,6 +31,7 @@ interface ScopeUsage {
   days: DayUsage[];
 }
 
+/** The line under the card title, by whose usage the card shows. */
 const DESCRIPTIONS = {
   provider: 'Requests the provider answered through this router and the tokens it reported for them, in and out.',
   workspace:
