@@ -33,7 +33,7 @@ function aMonthOfUsage() {
 
 const meta = {
   component: UsageCard,
-  args: { scope: { provider: 'ollama' } },
+  args: { scope: { kind: 'provider', id: 'ollama' } },
   parameters: { api: { [USAGE_ROUTE]: usage() } },
   decorators: [
     (Story) => (
@@ -67,7 +67,7 @@ export const ShowsTheTotalsEachModelAndEachDay: Story = {
 };
 
 export const OfAWorkspace: Story = {
-  args: { scope: { workspace: 'research' } },
+  args: { scope: { kind: 'workspace', id: 'research' } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const models = within(await canvas.findByRole('list', { name: 'Usage by model' })).getAllByRole('listitem');
@@ -107,7 +107,7 @@ export const WithNoDaysKept: Story = {
 };
 
 export const BeforeAnyRequest: Story = {
-  args: { scope: { provider: 'openrouter' } },
+  args: { scope: { kind: 'provider', id: 'openrouter' } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(await canvas.findByText('No requests yet.')).toBeVisible();

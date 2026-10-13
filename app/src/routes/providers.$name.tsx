@@ -190,7 +190,7 @@ function ProviderDetailPage() {
                 />
               )}
 
-              <UsageCard scope={{ provider: name }} />
+              <UsageCard scope={{ kind: 'provider', id: name }} />
 
               {isEditOpen && <ProviderDialog key={name} open provider={provider} onOpenChange={setIsEditOpen} />}
             </>

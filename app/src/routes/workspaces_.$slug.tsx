@@ -125,7 +125,7 @@ function WorkspaceDetailPage() {
                 emptyTitle="This workspace serves no models. Switch on a provider above."
               />
 
-              <UsageCard scope={{ workspace: slug }} />
+              <UsageCard scope={{ kind: 'workspace', id: slug }} />
 
               <ConnectCard
                 path={workspace.path}
