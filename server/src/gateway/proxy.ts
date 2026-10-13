@@ -204,11 +204,18 @@ export async function proxyToProvider(call: ProxyCall, req: Request, res: Respon
       done(null, chunk);
     },
   });
+  const source = Readable.fromWeb(upstream.body);
+  // Asked as the stream fails: the pipeline then closes the response, and by the catch below a provider that broke
+  // and a client that left look the same.
+  let didProviderBreak = false;
+  source.once('error', () => {
+    didProviderBreak = clientGone.signal.aborted === false;
+  });
   try {
-    await pipeline(Readable.fromWeb(upstream.body), tap, res);
+    await pipeline(source, tap, res);
   } catch (error) {
     // The head is sent, so there is no status left to report with: cut the connection and let the client see it.
-    if (clientGone.signal.aborted === false) {
+    if (didProviderBreak) {
       console.warn(`[gateway] stream from provider "${provider.name}" broke: ${errorMessage(error)}`);
     }
     res.destroy();
