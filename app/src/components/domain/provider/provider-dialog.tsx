@@ -1,20 +1,23 @@
 import { httpUrlSchema, type ProviderStatus, providerNameSchema } from '@llm-router/shared';
-import { useState } from 'react';
 import { CheckboxField, InputField, SwitchField, TextareaField, useAppForm } from '@/components/app-form';
 import { DialogLayout } from '@/components/dialog-layout';
+import { linesToRecord, malformedLines, recordToLines } from '@/components/domain/provider/key-value';
+import { providerLabel } from '@/components/domain/provider/provider-label';
+import { FormDialogFooter } from '@/components/layouts/form-dialog-footer';
 import { PasswordField } from '@/components/password-field';
 import { Alert } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
 import { FormElement } from '@/components/ui/form-element';
-import { useToast } from '@/components/ui/toast';
-import { linesToRecord, malformedLines, recordToLines } from '@/lib/key-value';
+import { unsavedChangesOf, useServerError } from '@/lib/form-dialog';
 import { useCreateProvider, useUpdateProvider } from '@/lib/queries';
-import { apiErrorMessage } from '@/lib/toast';
+import { useSuccessToast } from '@/lib/toast';
 
+/** Ties the submit button in the footer to the form in the body. */
 const FORM_ID = 'provider-form';
 
 interface ProviderDialogProps {
+  /** Whether the dialog is showing. */
   open: boolean;
+  /** Called when the dialog asks to open or close. */
   onOpenChange: (open: boolean) => void;
   /** Present when editing an existing provider; omitted when adding one. */
   provider?: ProviderStatus;
@@ -28,8 +31,8 @@ export function ProviderDialog({ open, onOpenChange, provider }: ProviderDialogP
   const isEdit = provider !== undefined;
   const create = useCreateProvider();
   const update = useUpdateProvider();
-  const toast = useToast();
-  const [serverError, setServerError] = useState<string>();
+  const toastSuccess = useSuccessToast();
+  const { serverError, submit } = useServerError();
 
   const form = useAppForm({
     defaultValues: {
@@ -42,26 +45,25 @@ export function ProviderDialog({ open, onOpenChange, provider }: ProviderDialogP
       description: provider?.description ?? '',
       enabled: provider?.enabled ?? true,
     },
-    onSubmit: async ({ value }) => {
-      setServerError(undefined);
+    onSubmit: ({ value }) => {
       const apiKey = value.apiKey.trim();
       const common = {
         baseUrl: value.baseUrl.trim(),
         enabled: value.enabled,
         headers: linesToRecord(value.headers),
       };
-      try {
+      return submit(async () => {
         if (isEdit) {
-          // An edit sends the texts even when empty, which clears them: left out, the server would keep the old ones.
           const keyChange = value.shouldRemoveKey ? { apiKey: null } : {};
           const saved = await update.mutateAsync({
             name: provider.name,
             ...common,
+            // An edit sends the texts even when empty, which clears them: left out, the server would keep the old ones.
             displayName: value.displayName.trim(),
             description: value.description.trim(),
             ...(apiKey ? { apiKey } : keyChange),
           });
-          toast(`Saved provider ${saved.name}`, 'positive');
+          toastSuccess(`Saved provider ${providerLabel(saved)}`);
         } else {
           const saved = await create.mutateAsync({
             name: value.name.trim(),
@@ -70,12 +72,10 @@ export function ProviderDialog({ open, onOpenChange, provider }: ProviderDialogP
             description: value.description.trim() || undefined,
             apiKey: apiKey || undefined,
           });
-          toast(`Added provider ${saved.name}`, 'positive');
+          toastSuccess(`Added provider ${providerLabel(saved)}`);
         }
         onOpenChange(false);
-      } catch (error) {
-        setServerError(apiErrorMessage(error));
-      }
+      });
     },
   });
 
@@ -84,16 +84,18 @@ export function ProviderDialog({ open, onOpenChange, provider }: ProviderDialogP
       open={open}
       onOpenChange={onOpenChange}
       size="lg"
-      title={isEdit ? `Edit ${provider.name}` : 'Add provider'}
+      title={isEdit ? `Edit ${providerLabel(provider)}` : 'Add provider'}
       description="A provider is one OpenAI-compatible server. Its models are served as <name>/<model>."
-      hasUnsavedChanges={() => form.state.isDefaultValue === false}
+      hasUnsavedChanges={unsavedChangesOf(form)}
       footerActionsSlot={(close) => (
-        <>
-          <Button type="button" variant="outline" onClick={close} content="Cancel" />
-          <form.AppForm>
-            <form.SubmitButton form={FORM_ID} content={isEdit ? 'Save changes' : 'Add provider'} />
-          </form.AppForm>
-        </>
+        <FormDialogFooter
+          onCancel={close}
+          submitSlot={
+            <form.AppForm>
+              <form.SubmitButton form={FORM_ID} content={isEdit ? 'Save changes' : 'Add provider'} />
+            </form.AppForm>
+          }
+        />
       )}
       contentSlot={
         <FormElement id={FORM_ID} onSubmit={() => form.handleSubmit()} className="gap-5">

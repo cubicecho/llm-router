@@ -2,20 +2,22 @@ import { useAppForm } from '@/components/app-form';
 import { CenteredLayout } from '@/components/centered-layout';
 import { PasswordField } from '@/components/password-field';
 import { Code } from '@/components/ui/code';
+import { FormElement } from '@/components/ui/form-element';
 import { KeyRound } from '@/components/ui/icons';
 
-/**
- * The token-entry screen shown when the router asks for its bearer token.
- *
- * @param props.onUnlock - Called with the trimmed token when the form is submitted with one.
- * @returns The screen.
- */
-export function TokenForm({ onUnlock }: { onUnlock: (token: string) => void }) {
+interface TokenFormProps {
+  /** Called with the trimmed token when the form is submitted with one. */
+  onUnlock: (token: string) => void;
+}
+
+/** The token-entry screen shown when the router asks for its bearer token. */
+export function TokenForm({ onUnlock }: TokenFormProps) {
   const form = useAppForm({
     defaultValues: { token: '' },
     onSubmit: ({ value, formApi }) => {
       const token = value.token.trim();
-      if (!token) {
+      const isBlank = token === '';
+      if (isBlank) {
         return;
       }
       formApi.reset();
@@ -33,13 +35,7 @@ export function TokenForm({ onUnlock }: { onUnlock: (token: string) => void }) {
         </>
       }
       contentSlot={
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            form.handleSubmit();
-          }}
-          className="flex flex-col gap-4"
-        >
+        <FormElement onSubmit={() => form.handleSubmit()} className="gap-4">
           <PasswordField
             form={form}
             name="token"
@@ -56,7 +52,7 @@ export function TokenForm({ onUnlock }: { onUnlock: (token: string) => void }) {
               </form.AppForm>
             )}
           </form.Subscribe>
-        </form>
+        </FormElement>
       }
     />
   );

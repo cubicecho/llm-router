@@ -100,8 +100,9 @@ describe('LLM Router', () => {
   const addProvider = (body: Record<string, unknown>) => authed(request(app).post('/api/providers')).send(body);
 
   beforeEach(async () => {
-    delete process.env.LLM_ROUTER_TOKEN;
-    delete process.env.SECURE_LOCAL_NET;
+    // A developer's own .env must not decide whether a token is generated here.
+    vi.stubEnv('LLM_ROUTER_TOKEN', undefined);
+    vi.stubEnv('SECURE_LOCAL_NET', undefined);
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     dataDir = await mkdtemp(path.join(tmpdir(), 'llm-router-'));
@@ -119,6 +120,7 @@ describe('LLM Router', () => {
     await store.close();
     await rm(dataDir, { recursive: true, force: true });
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
   });
 
   describe('auth and health', () => {

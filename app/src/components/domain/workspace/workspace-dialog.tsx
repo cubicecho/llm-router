@@ -1,19 +1,21 @@
-import { slugify, type WorkspaceStatus } from '@llm-router/shared';
+import { slugify, type WorkspaceStatus, workspaceEndpointPath } from '@llm-router/shared';
 import { useStore } from '@tanstack/react-form';
-import { useState } from 'react';
 import { InputField, SwitchField, useAppForm } from '@/components/app-form';
 import { DialogLayout } from '@/components/dialog-layout';
+import { FormDialogFooter } from '@/components/layouts/form-dialog-footer';
 import { Alert } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
 import { FormElement } from '@/components/ui/form-element';
-import { useToast } from '@/components/ui/toast';
+import { unsavedChangesOf, useServerError } from '@/lib/form-dialog';
 import { useCreateWorkspace, useUpdateWorkspace } from '@/lib/queries';
-import { apiErrorMessage } from '@/lib/toast';
+import { useSuccessToast } from '@/lib/toast';
 
+/** Ties the submit button in the footer to the form in the body. */
 const FORM_ID = 'workspace-form';
 
 interface WorkspaceDialogProps {
+  /** Whether the dialog is showing. */
   open: boolean;
+  /** Called when the dialog asks to open or close. */
   onOpenChange: (open: boolean) => void;
   /** Present when editing an existing workspace; omitted when creating. */
   workspace?: WorkspaceStatus;
@@ -29,8 +31,8 @@ export function WorkspaceDialog({ open, onOpenChange, workspace, onSaved }: Work
   const isEdit = workspace !== undefined;
   const create = useCreateWorkspace();
   const update = useUpdateWorkspace();
-  const toast = useToast();
-  const [serverError, setServerError] = useState<string>();
+  const toastSuccess = useSuccessToast();
+  const { serverError, submit } = useServerError();
 
   const form = useAppForm({
     defaultValues: {
@@ -38,15 +40,14 @@ export function WorkspaceDialog({ open, onOpenChange, workspace, onSaved }: Work
       description: workspace?.description ?? '',
       enabled: workspace?.enabled ?? true,
     },
-    onSubmit: async ({ value }) => {
-      setServerError(undefined);
+    onSubmit: ({ value }) => {
       const name = value.name.trim();
       const description = value.description.trim();
-      try {
+      return submit(async () => {
         if (isEdit) {
           // An edit sends the description even when empty: left out, the server would keep the old one.
           const saved = await update.mutateAsync({ slug: workspace.slug, name, description, enabled: value.enabled });
-          toast(`Saved workspace ${saved.name}`, 'positive');
+          toastSuccess(`Saved workspace ${saved.name}`);
           onSaved?.(saved);
         } else {
           const saved = await create.mutateAsync({
@@ -54,13 +55,11 @@ export function WorkspaceDialog({ open, onOpenChange, workspace, onSaved }: Work
             description: description || undefined,
             enabled: value.enabled,
           });
-          toast(`Created workspace ${saved.name}`, 'positive');
+          toastSuccess(`Created workspace ${saved.name}`);
           onSaved?.(saved);
         }
         onOpenChange(false);
-      } catch (error) {
-        setServerError(apiErrorMessage(error));
-      }
+      });
     },
   });
   const name = useStore(form.store, (state) => state.values.name);
@@ -76,14 +75,16 @@ export function WorkspaceDialog({ open, onOpenChange, workspace, onSaved }: Work
       onOpenChange={onOpenChange}
       title={isEdit ? `Edit ${workspace.name}` : 'New workspace'}
       description="A workspace serves the models of the providers you choose at its own OpenAI base URL."
-      hasUnsavedChanges={() => form.state.isDefaultValue === false}
+      hasUnsavedChanges={unsavedChangesOf(form)}
       footerActionsSlot={(close) => (
-        <>
-          <Button type="button" variant="outline" onClick={close} content="Cancel" />
-          <form.AppForm>
-            <form.SubmitButton form={FORM_ID} content={isEdit ? 'Save changes' : 'Create workspace'} />
-          </form.AppForm>
-        </>
+        <FormDialogFooter
+          onCancel={close}
+          submitSlot={
+            <form.AppForm>
+              <form.SubmitButton form={FORM_ID} content={isEdit ? 'Save changes' : 'Create workspace'} />
+            </form.AppForm>
+          }
+        />
       )}
       contentSlot={
         <FormElement id={FORM_ID} onSubmit={() => form.handleSubmit()} className="gap-5">
@@ -100,7 +101,7 @@ export function WorkspaceDialog({ open, onOpenChange, workspace, onSaved }: Work
             descriptionClassName="font-mono"
             description={
               <>
-                {isSlugValid ? `/w/${slug}/v1` : 'Enter a name to generate the URL'}
+                {isSlugValid ? workspaceEndpointPath(slug) : 'Enter a name to generate the URL'}
                 {isMoved && ' (renaming moves the URL)'}
               </>
             }

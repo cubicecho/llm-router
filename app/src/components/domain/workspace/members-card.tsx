@@ -1,19 +1,18 @@
 import type { ProviderStatus, WorkspaceStatus } from '@llm-router/shared';
 import { Link } from '@tanstack/react-router';
-import { useState } from 'react';
 import { CardLayout } from '@/components/card-layout';
+import { EnabledBadge } from '@/components/domain/enabled/enabled-badge';
+import { providerLabel } from '@/components/domain/provider/provider-label';
 import { MemberModelsDialog } from '@/components/domain/workspace/member-models-dialog';
 import { EmptyState } from '@/components/page';
 import { QueryState } from '@/components/query-state';
 import { SettingRow } from '@/components/setting-row';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { useToast } from '@/components/ui/toast';
+import { useEntityDialog } from '@/lib/entity-dialog';
 import { formatCount } from '@/lib/format';
-import { providerLabel } from '@/lib/provider-label';
 import { useProviders, useUpdateWorkspace } from '@/lib/queries';
-import { apiErrorMessage } from '@/lib/toast';
+import { useApiErrorToast } from '@/lib/toast';
 
 /**
  * Says what a member contributes.
@@ -33,22 +32,27 @@ function memberSummary(provider: ProviderStatus, isMember: boolean, allowed: str
   return allowed.length > 0 ? `${formatCount(allowed.length, 'model')} allowed` : 'Every model it lists';
 }
 
+interface MembersCardProps {
+  /** The workspace whose members the card edits. */
+  workspace: WorkspaceStatus;
+}
+
 /**
  * A workspace's members: every provider with a switch that puts it in the workspace, and the choice of which of its
  * models are served. A switch saves at once; the models are chosen in a dialog.
  */
-export function MembersCard({ workspace }: { workspace: WorkspaceStatus }) {
+export function MembersCard({ workspace }: MembersCardProps) {
   const providers = useProviders();
   const update = useUpdateWorkspace();
-  const toast = useToast();
-  const [editing, setEditing] = useState<ProviderStatus>();
+  const toastApiError = useApiErrorToast();
+  const modelsDialog = useEntityDialog<ProviderStatus>();
 
   const setMember = (provider: ProviderStatus, isOn: boolean) => {
     // A member switched off keeps its entry, and with it the models chosen for it.
     const member = { ...workspace.members[provider.name], enabled: isOn };
     update.mutate(
       { slug: workspace.slug, members: { ...workspace.members, [provider.name]: member } },
-      { onError: (error) => toast(apiErrorMessage(error)) },
+      { onError: toastApiError },
     );
   };
 
@@ -82,7 +86,7 @@ export function MembersCard({ workspace }: { workspace: WorkspaceStatus }) {
                 title={
                   <span className="flex flex-wrap items-center gap-2">
                     {label}
-                    {provider.enabled === false && <Badge variant="secondary">disabled</Badge>}
+                    {provider.enabled === false && <EnabledBadge enabled={false} />}
                   </span>
                 }
                 description={memberSummary(provider, isMember, member?.models ?? [])}
@@ -92,13 +96,15 @@ export function MembersCard({ workspace }: { workspace: WorkspaceStatus }) {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setEditing(provider)}
+                        onClick={() => modelsDialog.openEdit(provider)}
                         content="Choose models"
                         aria-label={`Choose models of ${label}`}
                       />
                     )}
                     <Switch
                       checked={isMember}
+                      // Each save sends every member: a second one sent before the first lands would undo it.
+                      disabled={update.isPending}
                       onCheckedChange={(isOn) => setMember(provider, isOn)}
                       aria-label={`Serve ${label}`}
                     />
@@ -107,13 +113,13 @@ export function MembersCard({ workspace }: { workspace: WorkspaceStatus }) {
               />
             );
           })}
-          {editing && (
+          {modelsDialog.entity && (
             <MemberModelsDialog
-              key={editing.name}
+              key={modelsDialog.entity.name}
               open
-              onOpenChange={(open) => open === false && setEditing(undefined)}
+              onOpenChange={modelsDialog.onOpenChange}
               workspace={workspace}
-              provider={editing}
+              provider={modelsDialog.entity}
             />
           )}
         </>

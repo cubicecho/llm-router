@@ -4,24 +4,26 @@ import { NumberField, SwitchField, TextareaField, useAppForm } from '@/component
 import { CardLayout } from '@/components/card-layout';
 import { ConfirmButton } from '@/components/confirm-button';
 import { DescriptionList, PropertyRow } from '@/components/description-list';
+import { PAGE_BODY_CLASS } from '@/components/layouts/page-body';
 import { PageLayout } from '@/components/page-layout';
-import { QueryError, QueryState } from '@/components/query-state';
+import { QueryState } from '@/components/query-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Code, CodeBlock } from '@/components/ui/code';
 import { FormElement } from '@/components/ui/form-element';
 import { RefreshCw, Trash2 } from '@/components/ui/icons';
 import { ThemePicker } from '@/components/ui/theme-picker';
-import { useToast } from '@/components/ui/toast';
 import { formatCount, formatDuration } from '@/lib/format';
+import { nonBlankLines } from '@/lib/lines';
 import { useReloadConfig, useResetUsage, useRouterStatus, useSettings, useUpdateSettings } from '@/lib/queries';
-import { apiErrorMessage } from '@/lib/toast';
+import { useApiErrorToast, useSuccessToast } from '@/lib/toast';
 
 /** The `/settings` route. */
 export const Route = createFileRoute('/settings')({
   component: SettingsPage,
 });
 
+/** The layout of the config directory, as the settings page draws it. */
 const CONFIG_TREE = `config/
 ├── settings.json        # port, auth token, auth enabled, timeouts, allowed origins
 ├── providers/
@@ -29,39 +31,43 @@ const CONFIG_TREE = `config/
 └── workspaces/
     └── <slug>.json      # one file per workspace`;
 
-/**
- * Reads the origins out of a textarea.
- *
- * @param text - One origin per line.
- * @returns The non-empty lines, trimmed.
- */
-function originsOf(text: string): string[] {
-  return text
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
+/** What the settings form edits. */
+interface SettingsFormValues {
+  /** Whether the router asks for its token. */
+  authEnabled: boolean;
+  /** The response timeout in seconds; null while the field is empty. */
+  responseTimeoutSeconds: number | null;
+  /** The allowed browser origins, one per line. */
+  allowedOrigins: string;
+}
+
+interface SettingsFormProps {
+  /** The stored settings the form starts from. */
+  settings: EditableSettings;
 }
 
 /** The form over the settings the router can change while running. */
-function SettingsForm({ settings }: { settings: EditableSettings }) {
+function SettingsForm({ settings }: SettingsFormProps) {
   const update = useUpdateSettings();
-  const toast = useToast();
+  const toastSuccess = useSuccessToast();
+  const toastApiError = useApiErrorToast();
+  const defaultValues: SettingsFormValues = {
+    authEnabled: settings.authEnabled,
+    responseTimeoutSeconds: settings.responseTimeoutMs / MS_PER_SECOND,
+    allowedOrigins: settings.allowedOrigins.join('\n'),
+  };
   const form = useAppForm({
-    defaultValues: {
-      authEnabled: settings.authEnabled,
-      responseTimeoutSeconds: (settings.responseTimeoutMs / MS_PER_SECOND) as number | null,
-      allowedOrigins: settings.allowedOrigins.join('\n'),
-    },
+    defaultValues,
     onSubmit: async ({ value }) => {
       try {
         await update.mutateAsync({
           authEnabled: value.authEnabled,
           responseTimeoutMs: Math.round((value.responseTimeoutSeconds ?? 0) * MS_PER_SECOND),
-          allowedOrigins: originsOf(value.allowedOrigins),
+          allowedOrigins: nonBlankLines(value.allowedOrigins),
         });
-        toast('Settings saved', 'positive');
+        toastSuccess('Settings saved');
       } catch (error) {
-        toast(apiErrorMessage(error));
+        toastApiError(error);
       }
     },
   });
@@ -112,24 +118,24 @@ function SettingsPage() {
   const settings = useSettings();
   const reload = useReloadConfig();
   const resetUsage = useResetUsage();
-  const toast = useToast();
+  const toastSuccess = useSuccessToast();
+  const toastApiError = useApiErrorToast();
   const { data } = status;
 
   const handleReload = () => {
     reload.mutate(undefined, {
       onSuccess: (reloaded) =>
-        toast(
+        toastSuccess(
           `Configuration reloaded: ${formatCount(reloaded.providerCount, 'provider')}, ${formatCount(reloaded.workspaceCount, 'workspace')}`,
-          'positive',
         ),
-      onError: (error) => toast(apiErrorMessage(error)),
+      onError: toastApiError,
     });
   };
 
   const handleResetUsage = () => {
     resetUsage.mutate(undefined, {
-      onSuccess: () => toast('Usage counts reset', 'positive'),
-      onError: (error) => toast(apiErrorMessage(error)),
+      onSuccess: () => toastSuccess('Usage counts reset'),
+      onError: toastApiError,
     });
   };
 
@@ -138,17 +144,16 @@ function SettingsPage() {
       title="Settings"
       description="Router status and configuration."
       width="prose"
+      contentClassName={PAGE_BODY_CLASS}
       contentSlot={
-        <div className="flex flex-col gap-6 py-4 md:py-6">
+        <>
           <CardLayout
             level={2}
             title="Router"
-            loading={status.isPending}
             contentSlot={
-              status.error ? (
-                <QueryError error={status.error} onRetry={() => status.refetch()} what="status" />
-              ) : (
-                data && (
+              <>
+                <QueryState query={status} what="status" count={data ? 1 : 0} rows={5} />
+                {data && (
                   <DescriptionList
                     contentSlot={
                       <>
@@ -176,8 +181,8 @@ function SettingsPage() {
                       </>
                     }
                   />
-                )
-              )
+                )}
+              </>
             }
           />
 
@@ -251,7 +256,7 @@ function SettingsPage() {
           />
 
           <CardLayout level={2} title="Appearance" contentSlot={<ThemePicker variant="compact" />} />
-        </div>
+        </>
       }
     />
   );

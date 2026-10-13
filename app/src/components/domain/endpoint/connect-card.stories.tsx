@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, within } from 'storybook/test';
-import { clearToken, setToken } from '@/lib/auth';
+import { resetAuth, unlock } from '@/lib/auth';
 import { routerStatus } from '@/storybook/fixtures';
 import { pending } from '@/storybook/mock-api';
 import { ConnectCard } from './connect-card.tsx';
@@ -10,8 +10,8 @@ const TOKEN = 'story-token-123';
 
 /** Signs the story in before it renders, as a browser that already holds the token. */
 function withStoredToken(): () => void {
-  setToken(TOKEN);
-  return clearToken;
+  unlock(TOKEN);
+  return resetAuth;
 }
 
 const meta = {
@@ -86,6 +86,19 @@ export const MasksTheTokenUntilRevealed: Story = {
 
     await userEvent.click(canvas.getByRole('button', { name: 'Hide token' }));
     await expect(canvas.queryByText(new RegExp(TOKEN))).not.toBeInTheDocument();
+  },
+};
+
+export const FollowsTheTokenAsItChanges: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText(/Authorization: Bearer <YOUR_TOKEN>/)).toBeVisible();
+
+    unlock(TOKEN);
+    await expect(await canvas.findByText(/Authorization: Bearer ••••••••••••/)).toBeVisible();
+
+    resetAuth();
+    await expect(await canvas.findByText(/Authorization: Bearer <YOUR_TOKEN>/)).toBeVisible();
   },
 };
 

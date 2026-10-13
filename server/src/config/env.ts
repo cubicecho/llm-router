@@ -25,7 +25,8 @@ const TRUTHY_ENV = new Set(['1', 'true', 'yes', 'on']);
  */
 function envMs(value: string | undefined, fallback: number, min: number): number {
   const parsed = Number(value?.trim() || Number.NaN);
-  return Number.isInteger(parsed) && parsed >= min ? parsed : fallback;
+  const isAccepted = Number.isInteger(parsed) && parsed >= min;
+  return isAccepted ? parsed : fallback;
 }
 
 /**
@@ -48,7 +49,8 @@ export function dataDir(env: NodeJS.ProcessEnv = process.env): string {
  */
 export function listenPort(settingsPort: number, env: NodeJS.ProcessEnv = process.env): number {
   const raw = env.PORT;
-  if (raw === undefined || raw === '') {
+  const isUnset = raw === undefined || raw === '';
+  if (isUnset) {
     return settingsPort;
   }
   const port = Number(raw);
@@ -113,13 +115,14 @@ export function outboundKeepAliveTimeoutMs(env: NodeJS.ProcessEnv = process.env)
 }
 
 /**
- * Refuse to start with the placeholder token from `.env.example`.
+ * Refuses to start with the placeholder token from `.env.example`.
  *
  * @param [env] - The process environment.
  * @throws When `LLM_ROUTER_TOKEN` is the placeholder and auth is on.
  */
 export function refusePlaceholderToken(env: NodeJS.ProcessEnv = process.env): void {
-  if (env.LLM_ROUTER_TOKEN === PLACEHOLDER_TOKEN && authDisabledByEnv(env) === false) {
+  const isPlaceholderInUse = env.LLM_ROUTER_TOKEN === PLACEHOLDER_TOKEN && authDisabledByEnv(env) === false;
+  if (isPlaceholderInUse) {
     throw new Error(
       `LLM_ROUTER_TOKEN is still the placeholder "${PLACEHOLDER_TOKEN}" from .env.example. ` +
         'Set it to a long random value (openssl rand -hex 32), or remove it to have one generated.',

@@ -111,6 +111,10 @@ export const RefreshesTheModels: Story = {
     apiRequest.mockClear();
     await userEvent.click(canvas.getByRole('button', { name: 'Refresh' }));
     await waitFor(() => expect(apiRequest).toHaveBeenCalledWith(MODELS_ROUTE, undefined));
+    // The fresh listing is kept as it comes back, so the refresh is the only request for it.
+    await expect(await canvas.findByRole('button', { name: 'Refresh' })).toBeEnabled();
+    const listingCalls = apiRequest.mock.calls.filter(([route]) => route === MODELS_ROUTE);
+    await expect(listingCalls).toHaveLength(1);
   },
 };
 

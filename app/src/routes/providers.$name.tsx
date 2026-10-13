@@ -2,28 +2,21 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { ActionButton } from '@/components/action-button';
 import { CardLayout } from '@/components/card-layout';
-import { ConfirmButton } from '@/components/confirm-button';
 import { DescriptionList, PropertyRow } from '@/components/description-list';
+import { EnabledSetting } from '@/components/domain/enabled/enabled-setting';
 import { ModelsCard } from '@/components/domain/model/models-card';
+import { DeleteProviderButton } from '@/components/domain/provider/delete-provider-button';
 import { ProviderDialog } from '@/components/domain/provider/provider-dialog';
+import { providerLabel } from '@/components/domain/provider/provider-label';
 import { UsageCard } from '@/components/domain/usage/usage-card';
+import { PAGE_BODY_CLASS } from '@/components/layouts/page-body';
 import { PageLayout } from '@/components/page-layout';
 import { QueryState } from '@/components/query-state';
-import { SettingRow } from '@/components/setting-row';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Pencil, RefreshCw, Trash2 } from '@/components/ui/icons';
-import { Switch } from '@/components/ui/switch';
-import { useToast } from '@/components/ui/toast';
-import { providerLabel } from '@/lib/provider-label';
-import {
-  useDeleteProvider,
-  useProvider,
-  useProviderModels,
-  useRefreshProviderModels,
-  useUpdateProvider,
-} from '@/lib/queries';
-import { apiErrorMessage } from '@/lib/toast';
+import { ArrowLeft, Pencil, RefreshCw } from '@/components/ui/icons';
+import { useProvider, useProviderModels, useRefreshProviderModels, useUpdateProvider } from '@/lib/queries';
+import { useApiErrorToast, useSuccessToast } from '@/lib/toast';
 
 /** The `/providers/$name` route. */
 export const Route = createFileRoute('/providers/$name')({
@@ -38,22 +31,12 @@ function ProviderDetailPage() {
   const { data: provider } = query;
   const models = useProviderModels(name, { enabled: provider?.enabled === true });
   const update = useUpdateProvider();
-  const remove = useDeleteProvider();
   const refresh = useRefreshProviderModels();
-  const toast = useToast();
+  const toastSuccess = useSuccessToast();
+  const toastApiError = useApiErrorToast();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const label = provider ? providerLabel(provider) : name;
   const headers = Object.entries(provider?.headers ?? {});
-
-  const handleDelete = () => {
-    remove.mutate(name, {
-      onSuccess: () => {
-        toast(`Deleted provider ${label}`, 'positive');
-        navigate({ to: '/' });
-      },
-      onError: (error) => toast(apiErrorMessage(error)),
-    });
-  };
 
   return (
     <PageLayout
@@ -70,8 +53,9 @@ function ProviderDetailPage() {
       title={label}
       description={provider?.description}
       loading={query.isPending}
+      contentClassName={PAGE_BODY_CLASS}
       contentSlot={
-        <div className="flex flex-col gap-6 py-4 md:py-6">
+        <>
           <QueryState query={query} what="provider" count={provider ? 1 : 0} rows={1} />
           {provider && (
             <>
@@ -87,18 +71,7 @@ function ProviderDetailPage() {
                       iconSlot={<Pencil />}
                       content="Edit"
                     />
-                    <ConfirmButton
-                      variant="outline"
-                      size="sm"
-                      label={`Delete ${label}`}
-                      tooltip={false}
-                      loading={remove.isPending}
-                      title={`Delete provider ${label}?`}
-                      description={`Its models (${provider.name}/…) stop being served, and it is removed from every workspace. The server itself is not affected.`}
-                      onConfirm={handleDelete}
-                      iconSlot={<Trash2 className="text-negative" />}
-                      content="Delete"
-                    />
+                    <DeleteProviderButton provider={provider} isLabelled onDeleted={() => navigate({ to: '/' })} />
                   </span>
                 }
                 contentClassName="gap-4"
@@ -138,25 +111,19 @@ function ProviderDetailPage() {
                         </>
                       }
                     />
-                    <SettingRow
-                      title="Enabled"
+                    <EnabledSetting
                       description="A disabled provider's models are served nowhere; its settings are kept."
-                      actionSlot={({ titleId }) => (
-                        <Switch
-                          checked={provider.enabled}
-                          disabled={update.isPending}
-                          aria-labelledby={titleId}
-                          onCheckedChange={(enabled) =>
-                            update.mutate(
-                              { name, enabled },
-                              {
-                                onSuccess: () => toast(`${enabled ? 'Enabled' : 'Disabled'} ${label}`, 'positive'),
-                                onError: (error) => toast(apiErrorMessage(error)),
-                              },
-                            )
-                          }
-                        />
-                      )}
+                      enabled={provider.enabled}
+                      saving={update.isPending}
+                      onChange={(enabled) =>
+                        update.mutate(
+                          { name, enabled },
+                          {
+                            onSuccess: () => toastSuccess(`${enabled ? 'Enabled' : 'Disabled'} ${label}`),
+                            onError: toastApiError,
+                          },
+                        )
+                      }
                     />
                   </>
                 }
@@ -174,7 +141,7 @@ function ProviderDetailPage() {
                       size="sm"
                       loading={refresh.isPending}
                       loadingLabel="Refreshing…"
-                      onClick={() => refresh.mutate(name, { onError: (error) => toast(apiErrorMessage(error)) })}
+                      onClick={() => refresh.mutate(name, { onError: toastApiError })}
                       iconSlot={<RefreshCw />}
                       content="Refresh"
                     />
@@ -190,12 +157,12 @@ function ProviderDetailPage() {
                 />
               )}
 
-              <UsageCard scope={{ provider: name }} />
+              <UsageCard scope={{ kind: 'provider', id: name }} />
 
               {isEditOpen && <ProviderDialog key={name} open provider={provider} onOpenChange={setIsEditOpen} />}
             </>
           )}
-        </div>
+        </>
       }
     />
   );

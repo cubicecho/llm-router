@@ -1,10 +1,11 @@
 import { ErrorCode, type OpenAiErrorBody } from '@llm-router/shared';
 import type { NextFunction, Request, Response } from 'express';
-import { exposedClientError } from '../api/error-middleware.ts';
-import { HttpError, internal } from '../core/errors.ts';
+import { exposedClientError, HttpError, INTERNAL_ERROR_MESSAGE, internal } from '../core/errors.ts';
 
 /** OpenAI's error `type` for a request the caller got wrong. */
 const INVALID_REQUEST = 'invalid_request_error';
+/** The `code` sent with a request the caller got wrong. */
+const INVALID_REQUEST_CODE = 'invalid_request';
 /** OpenAI's error `type` for a failure on the serving side. */
 const API_ERROR = 'api_error';
 /** The `code` OpenAI's SDKs know for a model that is not there. */
@@ -12,7 +13,7 @@ const MODEL_NOT_FOUND = 'model_not_found';
 
 /** OpenAI's `type` and `code` for each of the router's error codes. */
 const OPENAI_ERROR_BY_CODE = {
-  [ErrorCode.BadUserInput]: { type: INVALID_REQUEST, code: 'invalid_request' },
+  [ErrorCode.BadUserInput]: { type: INVALID_REQUEST, code: INVALID_REQUEST_CODE },
   [ErrorCode.Unauthenticated]: { type: 'authentication_error', code: 'invalid_api_key' },
   [ErrorCode.Forbidden]: { type: 'permission_error', code: 'forbidden' },
   [ErrorCode.NotFound]: { type: INVALID_REQUEST, code: 'not_found' },
@@ -37,7 +38,7 @@ export class ModelNotFoundError extends HttpError {
 }
 
 /**
- * Send an error as OpenAI's JSON envelope, with the status its code maps to.
+ * Sends an error as OpenAI's JSON envelope, with the status its code maps to.
  *
  * @param res - The response to write.
  * @param error - The error to render.
@@ -71,11 +72,11 @@ export function openAiErrorMiddleware(err: unknown, _req: Request, res: Response
   const clientError = exposedClientError(err);
   if (clientError) {
     const body: OpenAiErrorBody = {
-      error: { message: clientError.message, type: INVALID_REQUEST, param: null, code: 'invalid_request' },
+      error: { message: clientError.message, type: INVALID_REQUEST, param: null, code: INVALID_REQUEST_CODE },
     };
     res.status(clientError.status).json(body);
     return;
   }
   console.error('[gateway] unhandled error:', err);
-  sendOpenAiError(res, internal('Internal server error'));
+  sendOpenAiError(res, internal(INTERNAL_ERROR_MESSAGE));
 }

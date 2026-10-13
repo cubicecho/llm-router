@@ -1,11 +1,7 @@
+// Schemas for the flat config files stored under DATA_DIR/config. The files are hand-editable, so parsing is always
+// lenient on unknown keys and what a user added survives a round trip.
 import { z } from 'zod';
 import { NAME_DEFAULTS, SETTINGS_DEFAULTS } from './defaults.ts';
-
-/**
- * Schemas for the flat config files stored under DATA_DIR/config.
- * These files are hand-editable; parsing is always lenient on unknown keys
- * so user additions survive round-trips.
- */
 
 /** Splits a routed model id into its provider and the provider's own id: `<provider>/<model>`. */
 export const MODEL_SEPARATOR = '/';
@@ -16,6 +12,14 @@ export const providerNameSchema = z
   .min(1)
   .max(NAME_DEFAULTS.providerNameMaxLength)
   .regex(/^[a-z0-9][a-z0-9._-]*$/, 'lowercase alphanumerics, dots, dashes, underscores; must start alphanumeric');
+
+/**
+ * A workspace slug is its route segment at /w/<slug>/v1 and its file name.
+ *
+ * @remarks
+ * It follows the same rule as a provider name, so `slugify` serves both.
+ */
+export const workspaceSlugSchema = providerNameSchema;
 
 /** An http or https URL. */
 export const httpUrlSchema = z.url({ protocol: /^https?$/ });
@@ -81,7 +85,7 @@ export const workspaceConfigSchema = z
     /** Human-facing display name. */
     name: z.string().min(1).max(NAME_DEFAULTS.workspaceNameMaxLength),
     /** URL slug — the route segment at /w/<slug>/v1, also the config filename. */
-    slug: providerNameSchema,
+    slug: workspaceSlugSchema,
     /** Disable to 404 the workspace's endpoint without deleting it. */
     enabled: z.boolean().default(true),
     description: z.string().optional(),
@@ -113,7 +117,7 @@ function toNameChars(text: string): string {
  * Derives a URL slug or a provider name from a display name.
  *
  * @param name - The display name.
- * @returns A value `providerNameSchema` accepts, or an empty string when the name has no usable characters.
+ * @returns A value `providerNameSchema` and `workspaceSlugSchema` accept, or an empty string when the name has no usable characters.
  */
 export function slugify(name: string): string {
   return toNameChars(name)

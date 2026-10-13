@@ -11,6 +11,7 @@ import { Router } from 'express';
 import { conflict, notFound } from '../../core/errors.ts';
 import { namespaceModel } from '../../gateway/naming.ts';
 import type { ApiDeps } from '../deps.ts';
+import { keptOrCleared } from './kept-or-cleared.ts';
 
 /** The query value that asks for a fresh model listing instead of a cached one. */
 const REFRESH_QUERY_VALUE = 'true';
@@ -85,13 +86,12 @@ export function createProviderRoutes({ store, catalog, usage }: ApiDeps): Router
     const saved = await store.saveProvider(
       providerConfigSchema.parse({
         ...existing,
-        // An empty text clears it; one left out keeps the stored one.
-        displayName: update.displayName === undefined ? existing.displayName : update.displayName || undefined,
-        description: update.description === undefined ? existing.description : update.description || undefined,
+        displayName: keptOrCleared(update.displayName, existing.displayName),
+        description: keptOrCleared(update.description, existing.description),
         enabled: update.enabled ?? existing.enabled,
         baseUrl: update.baseUrl ?? existing.baseUrl,
-        // The key is write-only: left out it is kept, and null or an empty one removes it.
-        apiKey: update.apiKey === undefined ? existing.apiKey : update.apiKey || undefined,
+        // The key is write-only, so this is the one way to remove it.
+        apiKey: keptOrCleared(update.apiKey, existing.apiKey),
         headers: update.headers ?? existing.headers,
       }),
     );

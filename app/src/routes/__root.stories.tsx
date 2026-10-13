@@ -1,7 +1,7 @@
 import { ErrorCode, HttpStatus } from '@llm-router/shared';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import { getToken, setToken } from '@/lib/auth';
+import { getToken, unlock } from '@/lib/auth';
 import { appRoutes, routerStatus } from '@/storybook/fixtures';
 import { type ApiRoutes, apiError } from '@/storybook/mock-api';
 
@@ -85,12 +85,15 @@ export const AsksForTheTokenAndUnlocks: Story = {
 export const LocksAgain: Story = {
   parameters: { api: lockedRoutes() },
   beforeEach: () => {
-    setToken(TOKEN);
+    unlock(TOKEN);
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const [lock] = await canvas.findAllByRole('button', { name: LOCK_LABEL });
-    await userEvent.click(lock as HTMLElement);
+    if (lock === undefined) {
+      throw new Error('The frame shows no lock button');
+    }
+    await userEvent.click(lock);
     await expect(await canvas.findByRole('heading', { name: 'Authentication required' })).toBeVisible();
     await expect(getToken()).toBeNull();
   },

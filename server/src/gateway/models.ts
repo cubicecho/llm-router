@@ -38,6 +38,15 @@ interface CachedListing {
   models: Promise<UpstreamModel[]>;
 }
 
+/** A provider's answer to a model listing, read to its end. */
+interface ListingAnswer {
+  status: number;
+  /** Whether the status is a 2xx. */
+  ok: boolean;
+  /** The body, as text. */
+  text: string;
+}
+
 /** Lists each provider's models, reusing a recent listing. */
 export class ModelCatalog {
   private readonly fetch: UpstreamFetch;
@@ -64,7 +73,8 @@ export class ModelCatalog {
    */
   list(provider: ProviderConfig): Promise<UpstreamModel[]> {
     const cached = this.listings.get(provider.name);
-    if (cached && cached.provider === provider && cached.expiresAt > Date.now()) {
+    const isFresh = cached?.provider === provider && cached.expiresAt > Date.now();
+    if (isFresh) {
       return cached.models;
     }
     const models = this.fetchModels(provider);
@@ -88,6 +98,31 @@ export class ModelCatalog {
   }
 
   /**
+   * Asks a provider for its model list and reads the whole answer.
+   *
+   * @param provider - The provider.
+   * @param url - Its `<baseUrl>/models`.
+   * @param failed - The message of the error to raise.
+   * @returns The answer's status and body, whatever the status.
+   * @throws A 502 HttpError when the provider cannot be reached or its answer breaks off; a 504 for a timeout.
+   */
+  private async readListing(provider: ProviderConfig, url: string, failed: string): Promise<ListingAnswer> {
+    try {
+      const answer = await fetchWithin(this.fetch, url, {
+        method: 'GET',
+        headers: providerHeaders(provider),
+        timeoutMs: this.settings.modelListTimeoutMs,
+      });
+      return { status: answer.status, ok: answer.ok, text: await answer.text() };
+    } catch (cause) {
+      if (cause instanceof HttpError) {
+        throw cause;
+      }
+      throw upstreamFailed(failed, `${url} could not be reached: ${errorMessage(cause)}`, { cause });
+    }
+  }
+
+  /**
    * Fetches `<baseUrl>/models` from a provider.
    *
    * @param provider - The provider.
@@ -97,27 +132,9 @@ export class ModelCatalog {
   private async fetchModels(provider: ProviderConfig): Promise<UpstreamModel[]> {
     const url = upstreamUrl(provider.baseUrl, 'models');
     const failed = `Could not list the models of provider "${provider.name}"`;
-    let response: { status: number; ok: boolean };
-    let text: string;
-    try {
-      const answer = await fetchWithin(this.fetch, url, {
-        method: 'GET',
-        headers: providerHeaders(provider),
-        timeoutMs: this.settings.modelListTimeoutMs,
-      });
-      response = { status: answer.status, ok: answer.ok };
-      text = await answer.text();
-    } catch (cause) {
-      if (cause instanceof HttpError) {
-        throw cause;
-      }
-      throw upstreamFailed(failed, `${url} could not be reached: ${errorMessage(cause)}`, { cause });
-    }
-    if (response.ok === false) {
-      throw upstreamFailed(
-        failed,
-        `${url} answered ${response.status}: ${text.slice(0, this.settings.errorBodyMaxChars)}`,
-      );
+    const { ok, status, text } = await this.readListing(provider, url, failed);
+    if (ok === false) {
+      throw upstreamFailed(failed, `${url} answered ${status}: ${text.slice(0, this.settings.errorBodyMaxChars)}`);
     }
     try {
       return upstreamModelListSchema.parse(JSON.parse(text)).data;

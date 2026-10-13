@@ -1,8 +1,8 @@
 import type { TokenUsage } from '@llm-router/shared';
-import { exactTokens, usageLine } from '@/lib/usage';
+import { exactTokens, usageLine } from '@/components/domain/usage/usage';
 
 interface UsageTextProps {
-  /** The counts to word: a provider's totals or one model's. */
+  /** The counts to word: the totals of a provider or a workspace, or one model's. */
   usage: TokenUsage;
 }
 

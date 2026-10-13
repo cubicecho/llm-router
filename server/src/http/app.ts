@@ -1,10 +1,11 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import type { Health } from '@llm-router/shared';
+import { GLOBAL_ENDPOINT_PATH, type Health, WORKSPACE_PATH_PREFIX, workspaceEndpointPath } from '@llm-router/shared';
 import express from 'express';
 import { errorMiddleware } from '../api/error-middleware.ts';
 import { createApiRouter } from '../api/router.ts';
-import { createAuthMiddleware, createOriginMiddleware, effectiveAuth } from '../auth/middleware.ts';
+import { createAuthMiddleware, createOriginMiddleware } from '../auth/middleware.ts';
+import { effectiveAuth } from '../config/effective-auth.ts';
 import type { ConfigStore } from '../config/store.ts';
 import { HTTP_DEFAULTS } from '../core/defaults.ts';
 import { notFound } from '../core/errors.ts';
@@ -18,7 +19,10 @@ import { UsageStore } from '../usage/store.ts';
 import { outboundFetch } from './tuning.ts';
 
 /** Path prefixes the backend answers; the web UI's fallback leaves them alone. */
-const BACKEND_PATH_PREFIXES = ['/api', '/v1', '/w/', '/healthz'] as const;
+const BACKEND_PATH_PREFIXES = ['/api', GLOBAL_ENDPOINT_PATH, `${WORKSPACE_PATH_PREFIX}/`, '/healthz'] as const;
+
+/** The route parameter that carries a workspace's slug. */
+const SLUG_PARAM = 'slug';
 
 /** What the Express app is built over. */
 export interface AppDeps {
@@ -34,7 +38,7 @@ export interface AppDeps {
 }
 
 /**
- * Build the Express app (separate from listen() so tests can drive it with supertest).
+ * Builds the Express app (separate from listen() so tests can drive it with supertest).
  *
  * @param deps - The store, plus the test overrides.
  * @returns The app: /healthz, /api, /v1, /w/<slug>/v1, and the built web UI when its directory exists.
@@ -67,19 +71,20 @@ export function createApp(deps: AppDeps): express.Express {
 
   const gateway = { store, catalog, fetch, usage };
   app.use(
-    '/v1',
+    GLOBAL_ENDPOINT_PATH,
     openAiOriginGuard,
     openAiAuth,
     createEndpointRouter(gateway, () => globalScope(store)),
   );
   app.use(
-    '/w/:slug/v1',
+    workspaceEndpointPath(`:${SLUG_PARAM}`),
     openAiOriginGuard,
     openAiAuth,
     createEndpointRouter(gateway, (req) => {
-      const { slug } = req.params;
+      const slug = req.params[SLUG_PARAM];
       const workspace = typeof slug === 'string' ? store.getWorkspace(slug) : undefined;
-      if (!workspace?.enabled) {
+      const isUnserved = workspace === undefined || workspace.enabled === false;
+      if (isUnserved) {
         throw notFound(`Unknown workspace "${slug}"`);
       }
       return workspaceScope(workspace, store);
@@ -100,8 +105,8 @@ export function createApp(deps: AppDeps): express.Express {
     });
   }
 
-  app.use('/v1', openAiErrorMiddleware);
-  app.use('/w', openAiErrorMiddleware);
+  app.use(GLOBAL_ENDPOINT_PATH, openAiErrorMiddleware);
+  app.use(WORKSPACE_PATH_PREFIX, openAiErrorMiddleware);
   app.use(errorMiddleware);
   return app;
 }

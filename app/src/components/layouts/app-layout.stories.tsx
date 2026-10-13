@@ -11,7 +11,7 @@ const PARAGRAPH_COUNT = 60;
 const onLock = fn();
 
 /** The ones a user can see: the sidebar and the bar both stay in the page, and CSS shows one of them. */
-function shown(elements: HTMLElement[]) {
+function shown(elements: HTMLElement[]): HTMLElement[] {
   return elements.filter((element) => element.checkVisibility());
 }
 

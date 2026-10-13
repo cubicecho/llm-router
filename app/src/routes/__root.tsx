@@ -9,7 +9,7 @@ import { Lock, Settings } from '@/components/ui/icons';
 import { useThemePreference } from '@/components/ui/theme-preference';
 import { ToastProvider } from '@/components/ui/toast';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { clearToken, requireAuth, setToken, useNeedsAuth } from '@/lib/auth';
+import { lock, unlock, useNeedsAuth } from '@/lib/auth';
 import { formatCount, joinStats } from '@/lib/format';
 import { useRouterStatus } from '@/lib/queries';
 
@@ -18,19 +18,21 @@ export const Route = createRootRoute({
   component: RootComponent,
 });
 
+/** The places of the app, in the order the navigation lists them. */
 const NAV_ITEMS = [
   { to: '/', label: 'Providers', icon: ServerIcon },
   { to: '/workspaces', label: 'Workspaces', icon: LayersIcon },
   { to: '/settings', label: 'Settings', icon: Settings },
 ] as const;
 
+/** A sidebar item that navigates like a router link. */
 const SidebarLink = createLink(SidebarNavItem);
+/** A bar item that navigates like a router link. */
 const BarLink = createLink(BarNavItem);
 
 /**
- * The root of every screen: the token screen while the router wants a token, else the app frame.
- *
- * @returns The screen, with the tooltip and toast providers around it.
+ * The root of every screen: the token screen while the router wants a token, else the app frame, with the tooltip and
+ * toast providers around it.
  */
 function RootComponent() {
   // Applies the stored theme on every screen and keeps System in step with the device.
@@ -39,22 +41,20 @@ function RootComponent() {
   const queryClient = useQueryClient();
 
   // Any API call that comes back 401 swaps the app for the token screen; a token brings it back and refetches.
-  const unlock = (token: string) => {
-    setToken(token);
+  const unlockAndRefetch = (token: string) => {
+    unlock(token);
     queryClient.invalidateQueries();
   };
 
   return (
     <TooltipProvider>
-      <ToastProvider>{needsAuth ? <TokenForm onUnlock={unlock} /> : <AppFrame />}</ToastProvider>
+      <ToastProvider>{needsAuth ? <TokenForm onUnlock={unlockAndRefetch} /> : <AppFrame />}</ToastProvider>
     </TooltipProvider>
   );
 }
 
 /**
  * The signed-in app: the layout with its navigation, the provider and workspace counts, the lock button and the page.
- *
- * @returns The frame around the matched route.
  *
  * @remarks
  * The lock button is offered only when the router reports auth as enabled.
@@ -66,16 +66,8 @@ function AppFrame() {
     ? joinStats(formatCount(data.providerCount, 'provider'), formatCount(data.workspaceCount, 'workspace'))
     : undefined;
   // Providers owns "/" and the detail pages under /providers; every other place owns the paths under it.
-  const isActive = (to: string) =>
-    to === '/'
-      ? pathname === '/' || pathname.startsWith('/providers/')
-      : pathname === to || pathname.startsWith(`${to}/`);
-
-  // Clears the stored bearer token and brings the token screen back, for shared machines.
-  const lock = () => {
-    clearToken();
-    requireAuth();
-  };
+  const isOnProviders = pathname === '/' || pathname.startsWith('/providers/');
+  const isActive = (to: string) => (to === '/' ? isOnProviders : pathname === to || pathname.startsWith(`${to}/`));
 
   return (
     <AppLayout
@@ -93,6 +85,7 @@ function AppFrame() {
             size="icon-sm"
             label="Lock (forget the stored token)"
             hint="Lock — forget the stored token"
+            // For shared machines: the token is forgotten and the token screen comes back.
             onClick={lock}
             iconSlot={<Lock />}
           />

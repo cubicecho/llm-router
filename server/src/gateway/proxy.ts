@@ -1,15 +1,16 @@
 import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
+import type { ProviderConfig } from '@llm-router/shared';
 import type { Request, Response } from 'express';
 import { USAGE_DEFAULTS } from '../core/defaults.ts';
 import { badInput, errorMessage, HttpError, upstreamFailed } from '../core/errors.ts';
 import { isRecord } from '../core/is-record.ts';
 import { UsageReader } from '../usage/reader.ts';
-import type { UsageStore } from '../usage/store.ts';
+import type { ServedBy, UsageStore } from '../usage/store.ts';
 import { type EndpointScope, exposesModel, type ScopeMember } from './endpoint-scope.ts';
 import { splitNamespacedModel } from './naming.ts';
 import { ModelNotFoundError } from './openai-error.ts';
-import { providerHeaders } from './provider-headers.ts';
+import { JSON_CONTENT_TYPE, providerHeaders } from './provider-headers.ts';
 import { fetchWithin, type UpstreamFetch, type UpstreamResponse, upstreamUrl } from './upstream-fetch.ts';
 
 /**
@@ -58,6 +59,16 @@ interface RoutedBody {
 }
 
 /**
+ * Tells whether a request body names a model.
+ *
+ * @param body - The parsed request body.
+ * @returns True for a JSON object whose `model` is a string that is not empty.
+ */
+function namesModel(body: unknown): body is Record<string, unknown> & { model: string } {
+  return isRecord(body) && typeof body.model === 'string' && body.model !== '';
+}
+
+/**
  * Finds the scope member a request body's `model` names.
  *
  * @param scope - The endpoint's members.
@@ -66,7 +77,7 @@ interface RoutedBody {
  * @throws A 400 HttpError when the body has no `model`; a ModelNotFoundError when the endpoint does not serve it.
  */
 export function routeBody(scope: EndpointScope, body: unknown): RoutedBody {
-  if (isRecord(body) === false || typeof body.model !== 'string' || body.model === '') {
+  if (namesModel(body) === false) {
     throw badInput('The request body must be a JSON object with a "model" string, as <provider>/<model>');
   }
   const split = splitNamespacedModel(
@@ -74,7 +85,7 @@ export function routeBody(scope: EndpointScope, body: unknown): RoutedBody {
     scope.members.map((member) => member.provider.name),
   );
   const member = scope.members.find((candidate) => candidate.provider.name === split?.providerName);
-  if (!split || !member || exposesModel(member, split.upstreamId) === false) {
+  if (split === undefined || member === undefined || exposesModel(member, split.upstreamId) === false) {
     throw new ModelNotFoundError(body.model);
   }
   return { member, body: { ...body, model: split.upstreamId } };
@@ -89,11 +100,13 @@ export function routeBody(scope: EndpointScope, body: unknown): RoutedBody {
  * the client already chose.
  */
 export function withStreamUsage(path: string, body: Record<string, unknown>): Record<string, unknown> {
-  if (STREAM_USAGE_PATHS.has(path) === false || body.stream !== true) {
+  const isStreamedCompletion = STREAM_USAGE_PATHS.has(path) && body.stream === true;
+  if (isStreamedCompletion === false) {
     return body;
   }
   const options = isRecord(body.stream_options) ? body.stream_options : {};
-  if (options.include_usage !== undefined) {
+  const hasClientChosen = options.include_usage !== undefined;
+  if (hasClientChosen) {
     return body;
   }
   return { ...body, stream_options: { ...options, include_usage: true } };
@@ -107,13 +120,11 @@ export function withStreamUsage(path: string, body: Record<string, unknown>): Re
  * @returns The header's value, or an empty string when the response has none.
  */
 function responseHeader(upstream: UpstreamResponse, wanted: string): string {
-  let found = '';
+  const byName = new Map<string, string>();
   upstream.headers.forEach((value, name) => {
-    if (name.toLowerCase() === wanted) {
-      found = value;
-    }
+    byName.set(name.toLowerCase(), value);
   });
-  return found;
+  return byName.get(wanted) ?? '';
 }
 
 /**
@@ -133,6 +144,95 @@ function forwardHead(upstream: UpstreamResponse, res: Response): void {
   res.flushHeaders();
 }
 
+/** Where one request goes, and what it is counted under. */
+interface UpstreamTarget {
+  /** The provider that serves the request's model. */
+  provider: ProviderConfig;
+  /** The provider's URL for the request, query string included. */
+  url: string;
+  /** The body to send, its `model` the provider's own id. */
+  body: Record<string, unknown>;
+  /** What the request is counted under. */
+  served: ServedBy;
+}
+
+/**
+ * Settles which provider a request goes to, at which URL and with which body.
+ *
+ * @param call - The scope and the path under `/v1`.
+ * @param req - The client request, body already parsed.
+ * @returns The provider, its URL, the body to send and what to count the request under.
+ * @throws A 400 HttpError for a path that would leave the provider's base path or a body without a `model`; a
+ * ModelNotFoundError when the endpoint does not serve the model.
+ */
+function upstreamTarget(call: ProxyCall, req: Request): UpstreamTarget {
+  const { scope, pathSegments } = call;
+  if (pathSegments.some((segment) => DOT_SEGMENTS.has(segment))) {
+    throw badInput(`"${req.path}" is not a path this endpoint forwards`);
+  }
+  const routed = routeBody(scope, req.body);
+  const { provider } = routed.member;
+  const path = pathSegments.map(encodeURIComponent).join('/');
+  const { search } = new URL(req.originalUrl, 'http://router.invalid');
+  return {
+    provider,
+    url: `${upstreamUrl(provider.baseUrl, path)}${search}`,
+    body: withStreamUsage(pathSegments.join('/'), routed.body),
+    served: { workspace: scope.workspace, provider: provider.name, upstreamId: String(routed.body.model) },
+  };
+}
+
+/**
+ * Sends a request to its provider.
+ *
+ * @param call - How to reach the provider, and how long it may take.
+ * @param target - The provider, its URL and the body.
+ * @param req - The client request, for its `Accept` header.
+ * @param signal - Aborts the provider request when the client goes away.
+ * @returns The provider's response, headers received.
+ * @throws A 502 HttpError when the provider cannot be reached, a 504 when it does not answer in time.
+ */
+async function askProvider(
+  call: ProxyCall,
+  target: UpstreamTarget,
+  req: Request,
+  signal: AbortSignal,
+): Promise<UpstreamResponse> {
+  const { provider } = target;
+  try {
+    return await fetchWithin(call.fetch, target.url, {
+      method: 'POST',
+      headers: providerHeaders(provider, {
+        accept: req.get('accept') ?? JSON_CONTENT_TYPE,
+        'content-type': JSON_CONTENT_TYPE,
+      }),
+      body: JSON.stringify(target.body),
+      signal,
+      timeoutMs: call.responseTimeoutMs,
+    });
+  } catch (cause) {
+    if (cause instanceof HttpError) {
+      throw cause;
+    }
+    throw upstreamFailed(`Provider "${provider.name}" could not be reached`, errorMessage(cause), { cause });
+  }
+}
+
+/**
+ * Makes a pass-through stream that shows each chunk to a usage reader.
+ *
+ * @param reader - Reads the token counts out of the body as it goes by.
+ * @returns The stream; the bytes it sends on are the ones it was given.
+ */
+function usageTap(reader: UsageReader): Transform {
+  return new Transform({
+    transform(chunk: Buffer, _encoding, done) {
+      reader.push(chunk);
+      done(null, chunk);
+    },
+  });
+}
+
 /**
  * Forwards one JSON request to the provider its `model` names and pipes the answer back, a stream included.
  *
@@ -147,17 +247,9 @@ function forwardHead(upstream: UpstreamResponse, res: Response): void {
  * stream with its token counts; every answered request is counted in `call.usage`.
  */
 export async function proxyToProvider(call: ProxyCall, req: Request, res: Response): Promise<void> {
-  const { scope, pathSegments, fetch, responseTimeoutMs, usage } = call;
-  if (pathSegments.some((segment) => DOT_SEGMENTS.has(segment))) {
-    throw badInput(`"${req.path}" is not a path this endpoint forwards`);
-  }
-  const routed = routeBody(scope, req.body);
-  const { provider } = routed.member;
-  const served = { workspace: scope.workspace, provider: provider.name, upstreamId: String(routed.body.model) };
-  const body = withStreamUsage(pathSegments.join('/'), routed.body);
-  const path = pathSegments.map(encodeURIComponent).join('/');
-  const { search } = new URL(req.originalUrl, 'http://router.invalid');
-  const url = `${upstreamUrl(provider.baseUrl, path)}${search}`;
+  const { usage } = call;
+  const target = upstreamTarget(call, req);
+  const { provider, served } = target;
 
   const clientGone = new AbortController();
   res.on('close', () => {
@@ -166,24 +258,7 @@ export async function proxyToProvider(call: ProxyCall, req: Request, res: Respon
     }
   });
 
-  let upstream: UpstreamResponse;
-  try {
-    upstream = await fetchWithin(fetch, url, {
-      method: 'POST',
-      headers: providerHeaders(provider, {
-        accept: req.get('accept') ?? 'application/json',
-        'content-type': 'application/json',
-      }),
-      body: JSON.stringify(body),
-      signal: clientGone.signal,
-      timeoutMs: responseTimeoutMs,
-    });
-  } catch (cause) {
-    if (cause instanceof HttpError) {
-      throw cause;
-    }
-    throw upstreamFailed(`Provider "${provider.name}" could not be reached`, errorMessage(cause), { cause });
-  }
+  const upstream = await askProvider(call, target, req, clientGone.signal);
 
   forwardHead(upstream, res);
   if (upstream.body === null) {
@@ -198,17 +273,18 @@ export async function proxyToProvider(call: ProxyCall, req: Request, res: Respon
     responseHeader(upstream, 'content-type').includes(EVENT_STREAM_TYPE),
     USAGE_DEFAULTS.maxResponseBytes,
   );
-  const tap = new Transform({
-    transform(chunk: Buffer, _encoding, done) {
-      reader.push(chunk);
-      done(null, chunk);
-    },
+  const source = Readable.fromWeb(upstream.body);
+  // Asked as the stream fails: the pipeline then closes the response, and by the catch below a provider that broke
+  // and a client that left look the same.
+  let didProviderBreak = false;
+  source.once('error', () => {
+    didProviderBreak = clientGone.signal.aborted === false;
   });
   try {
-    await pipeline(Readable.fromWeb(upstream.body), tap, res);
+    await pipeline(source, usageTap(reader), res);
   } catch (error) {
     // The head is sent, so there is no status left to report with: cut the connection and let the client see it.
-    if (clientGone.signal.aborted === false) {
+    if (didProviderBreak) {
       console.warn(`[gateway] stream from provider "${provider.name}" broke: ${errorMessage(error)}`);
     }
     res.destroy();

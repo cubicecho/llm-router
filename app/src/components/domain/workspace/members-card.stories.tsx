@@ -56,6 +56,17 @@ export const SwitchesAProviderOffAndKeepsItsModels: Story = {
   },
 };
 
+export const HoldsEverySwitchWhileAChangeIsSaving: Story = {
+  parameters: { api: { ...routes, [UPDATE_ROUTE]: pending() } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole('switch', { name: 'Serve openrouter' }));
+    // A second change now would be built on the members as they were before the first.
+    await waitFor(() => expect(canvas.getByRole('switch', { name: 'Serve Ollama' })).toBeDisabled());
+    await expect(canvas.getByRole('switch', { name: 'Serve openrouter' })).toBeDisabled();
+  },
+};
+
 export const SwitchesOnAProviderThatIsNotAMember: Story = {
   args: { workspace: workspace({ members: { ollama: { enabled: true } } }) },
   play: async ({ canvasElement }) => {

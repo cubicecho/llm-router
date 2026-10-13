@@ -57,20 +57,25 @@ function entryKey(entry: Pick<UsageEntry, 'day' | 'workspace' | 'provider' | 'up
   return JSON.stringify([entry.day ?? null, entry.workspace ?? null, entry.provider, entry.upstreamId]);
 }
 
+/** The counts of nothing, which every sum starts from. */
+const NO_USAGE: TokenUsage = { requests: 0, inputTokens: 0, outputTokens: 0 };
+
+/** A list that holds at least one item. */
+type NonEmpty<T> = [T, ...T[]];
+
 /**
- * Adds counts to the ones kept under a key.
+ * Adds two counts.
  *
- * @param totals - The running totals; changed in place.
- * @param key - What the counts belong to.
- * @param counts - The counts to add.
+ * @param left - One count.
+ * @param right - The other.
+ * @returns Their sum, as a new object holding only the counts.
  */
-function addTo(totals: Map<string, TokenUsage>, key: string, counts: TokenUsage): void {
-  const before = totals.get(key);
-  totals.set(key, {
-    requests: (before?.requests ?? 0) + counts.requests,
-    inputTokens: (before?.inputTokens ?? 0) + counts.inputTokens,
-    outputTokens: (before?.outputTokens ?? 0) + counts.outputTokens,
-  });
+function addUsage(left: TokenUsage, right: TokenUsage): TokenUsage {
+  return {
+    requests: left.requests + right.requests,
+    inputTokens: left.inputTokens + right.inputTokens,
+    outputTokens: left.outputTokens + right.outputTokens,
+  };
 }
 
 /**
@@ -80,11 +85,7 @@ function addTo(totals: Map<string, TokenUsage>, key: string, counts: TokenUsage)
  * @returns Their sum; all zeros for none.
  */
 function sumUsage(counts: Iterable<TokenUsage>): TokenUsage {
-  const totals = new Map<string, TokenUsage>([['', { requests: 0, inputTokens: 0, outputTokens: 0 }]]);
-  for (const count of counts) {
-    addTo(totals, '', count);
-  }
-  return totals.get('') as TokenUsage;
+  return [...counts].reduce(addUsage, NO_USAGE);
 }
 
 /**
@@ -92,14 +93,18 @@ function sumUsage(counts: Iterable<TokenUsage>): TokenUsage {
  *
  * @param entries - The entries.
  * @param groupOf - Names an entry's group; undefined leaves the entry out.
- * @returns The groups, by name, in name order.
+ * @returns The groups, by name, in name order. No group is empty.
  */
-function groupBy(entries: UsageEntry[], groupOf: (entry: UsageEntry) => string | undefined): [string, UsageEntry[]][] {
-  const groups = new Map<string, UsageEntry[]>();
+function groupBy(
+  entries: UsageEntry[],
+  groupOf: (entry: UsageEntry) => string | undefined,
+): [string, NonEmpty<UsageEntry>][] {
+  const groups = new Map<string, NonEmpty<UsageEntry>>();
   for (const entry of entries) {
     const group = groupOf(entry);
     if (group !== undefined) {
-      groups.set(group, [...(groups.get(group) ?? []), entry]);
+      const before = groups.get(group);
+      groups.set(group, before ? [...before, entry] : [entry]);
     }
   }
   return [...groups.entries()].sort(([left], [right]) => left.localeCompare(right));
@@ -125,7 +130,7 @@ function daysOf(entries: UsageEntry[]): DayUsage[] {
  */
 function modelsOf(entries: UsageEntry[]): WorkspaceModelUsage[] {
   return groupBy(entries, (entry) => JSON.stringify([entry.provider, entry.upstreamId])).map(([, ofModel]) => {
-    const [{ provider, upstreamId }] = ofModel as [UsageEntry, ...UsageEntry[]];
+    const [{ provider, upstreamId }] = ofModel;
     return { provider, upstreamId, ...sumUsage(ofModel) };
   });
 }

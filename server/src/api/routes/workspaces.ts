@@ -2,28 +2,20 @@ import {
   createWorkspaceRequestSchema,
   HttpStatus,
   type ModelsResponse,
-  providerNameSchema,
   slugify,
   updateWorkspaceRequestSchema,
   type WorkspaceConfig,
   type WorkspaceStatus,
   workspaceConfigSchema,
+  workspaceEndpointPath,
+  workspaceSlugSchema,
 } from '@llm-router/shared';
 import { Router } from 'express';
 import { badInput, conflict, notFound } from '../../core/errors.ts';
 import { workspaceScope } from '../../gateway/endpoint-scope.ts';
 import { listScopeModels } from '../../gateway/models.ts';
 import type { ApiDeps } from '../deps.ts';
-
-/**
- * Names the path of a workspace's OpenAI base URL.
- *
- * @param slug - The workspace's slug.
- * @returns `/w/<slug>/v1`.
- */
-export function workspacePath(slug: string): string {
-  return `/w/${slug}/v1`;
-}
+import { keptOrCleared } from './kept-or-cleared.ts';
 
 /**
  * Builds workspace CRUD and each workspace's merged model listing, mounted at /api/workspaces.
@@ -38,7 +30,7 @@ export function createWorkspaceRoutes({ store, catalog, usage }: ApiDeps): Route
 
   const toWorkspaceStatus = (workspace: WorkspaceConfig): WorkspaceStatus => ({
     ...workspace,
-    path: workspacePath(workspace.slug),
+    path: workspaceEndpointPath(workspace.slug),
   });
 
   const requireWorkspace = (slug: string): WorkspaceConfig => {
@@ -59,7 +51,7 @@ export function createWorkspaceRoutes({ store, catalog, usage }: ApiDeps): Route
   };
 
   const requireValidSlug = (slug: string): string => {
-    const parsed = providerNameSchema.safeParse(slug);
+    const parsed = workspaceSlugSchema.safeParse(slug);
     if (parsed.success === false) {
       throw badInput(`Invalid workspace slug "${slug}"`, 'derive a name that yields a valid URL slug');
     }
@@ -108,8 +100,7 @@ export function createWorkspaceRoutes({ store, catalog, usage }: ApiDeps): Route
       name,
       slug,
       enabled: update.enabled ?? existing.enabled,
-      // An empty description clears it; one left out keeps the stored one.
-      description: update.description === undefined ? existing.description : update.description || undefined,
+      description: keptOrCleared(update.description, existing.description),
       members: update.members ?? existing.members,
     });
     await store.saveWorkspace(next);

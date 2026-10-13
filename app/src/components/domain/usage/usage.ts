@@ -1,5 +1,5 @@
 import type { TokenUsage } from '@llm-router/shared';
-import { formatCount, formatDate, joinStats } from './format.ts';
+import { formatCount, formatDate, joinStats } from '@/lib/format';
 
 /** Token counts are shortened to one decimal place: 1.3M, 340.1K. */
 const COMPACT_TOKENS = new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 });
@@ -38,6 +38,9 @@ export function exactTokens(usage: TokenUsage): string {
   return `${formatCount(usage.inputTokens, 'token')} in, ${formatCount(usage.outputTokens, 'token')} out`;
 }
 
+/** Appended to a bare `YYYY-MM-DD` so it is read as a local date and not as UTC. */
+const LOCAL_MIDNIGHT = 'T00:00:00';
+
 /**
  * Words a usage day for a row.
  *
@@ -46,5 +49,5 @@ export function exactTokens(usage: TokenUsage): string {
  * parsed as UTC and would show as the day before west of Greenwich.
  */
 export function dayLabel(day: string): string {
-  return formatDate(`${day}T00:00:00`);
+  return formatDate(`${day}${LOCAL_MIDNIGHT}`);
 }

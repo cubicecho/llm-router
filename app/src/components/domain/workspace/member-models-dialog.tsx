@@ -1,21 +1,25 @@
 import type { ProviderStatus, WorkspaceStatus } from '@llm-router/shared';
-import { useState } from 'react';
 import { useAppForm } from '@/components/app-form';
 import { DialogLayout } from '@/components/dialog-layout';
+import { providerLabel } from '@/components/domain/provider/provider-label';
+import { FormDialogFooter } from '@/components/layouts/form-dialog-footer';
 import { MultiSelectField } from '@/components/multi-select-field';
 import { Alert } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
 import { FormElement } from '@/components/ui/form-element';
-import { useToast } from '@/components/ui/toast';
-import { providerLabel } from '@/lib/provider-label';
+import { unsavedChangesOf, useServerError } from '@/lib/form-dialog';
+import { listingFailure } from '@/lib/listing-failure';
 import { useProviderModels, useUpdateWorkspace } from '@/lib/queries';
-import { apiErrorMessage } from '@/lib/toast';
+import { useSuccessToast } from '@/lib/toast';
 
+/** Ties the submit button in the footer to the form in the body. */
 const FORM_ID = 'member-models-form';
 
 interface MemberModelsDialogProps {
+  /** Whether the dialog is showing. */
   open: boolean;
+  /** Called when the dialog asks to open or close. */
   onOpenChange: (open: boolean) => void;
+  /** The workspace the member belongs to. */
   workspace: WorkspaceStatus;
   /** The member whose models are chosen. */
   provider: ProviderStatus;
@@ -27,9 +31,9 @@ interface MemberModelsDialogProps {
  */
 export function MemberModelsDialog({ open, onOpenChange, workspace, provider }: MemberModelsDialogProps) {
   const update = useUpdateWorkspace();
-  const toast = useToast();
+  const toastSuccess = useSuccessToast();
   const listing = useProviderModels(provider.name);
-  const [serverError, setServerError] = useState<string>();
+  const { serverError, submit } = useServerError();
   const member = workspace.members[provider.name];
   const stored = member?.models ?? [];
   const label = providerLabel(provider);
@@ -37,23 +41,21 @@ export function MemberModelsDialog({ open, onOpenChange, workspace, provider }: 
   // A stored model the provider no longer lists stays choosable, so opening the dialog never drops it silently.
   const listed = (listing.data?.models ?? []).map((model) => model.upstreamId);
   const options = [...new Set([...listed, ...stored])].map((upstreamId) => ({ value: upstreamId, label: upstreamId }));
-  const listingError = listing.data?.skipped[0]?.error ?? (listing.error ? apiErrorMessage(listing.error) : undefined);
+  const listingError = listingFailure(listing);
 
+  const defaultValues: { models: readonly string[] } = { models: stored };
   const form = useAppForm({
-    defaultValues: { models: stored as readonly string[] },
-    onSubmit: async ({ value }) => {
-      setServerError(undefined);
+    defaultValues,
+    onSubmit: ({ value }) => {
       const models = value.models.length > 0 ? [...value.models] : undefined;
-      try {
+      return submit(async () => {
         await update.mutateAsync({
           slug: workspace.slug,
           members: { ...workspace.members, [provider.name]: { enabled: member?.enabled ?? true, models } },
         });
-        toast(`Saved the models of ${label}`, 'positive');
+        toastSuccess(`Saved the models of ${label}`);
         onOpenChange(false);
-      } catch (error) {
-        setServerError(apiErrorMessage(error));
-      }
+      });
     },
   });
 
@@ -63,14 +65,16 @@ export function MemberModelsDialog({ open, onOpenChange, workspace, provider }: 
       onOpenChange={onOpenChange}
       title={`Models of ${label}`}
       description={`Which of this provider's models ${workspace.name} serves.`}
-      hasUnsavedChanges={() => form.state.isDefaultValue === false}
+      hasUnsavedChanges={unsavedChangesOf(form)}
       footerActionsSlot={(close) => (
-        <>
-          <Button type="button" variant="outline" onClick={close} content="Cancel" />
-          <form.AppForm>
-            <form.SubmitButton form={FORM_ID} content="Save models" />
-          </form.AppForm>
-        </>
+        <FormDialogFooter
+          onCancel={close}
+          submitSlot={
+            <form.AppForm>
+              <form.SubmitButton form={FORM_ID} content="Save models" />
+            </form.AppForm>
+          }
+        />
       )}
       contentSlot={
         <FormElement id={FORM_ID} onSubmit={() => form.handleSubmit()} className="gap-5">

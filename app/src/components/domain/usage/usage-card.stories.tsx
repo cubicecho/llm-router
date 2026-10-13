@@ -1,4 +1,4 @@
-import { ErrorCode, HttpStatus } from '@llm-router/shared';
+import { ErrorCode, HttpStatus, type UsageResponse } from '@llm-router/shared';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, within } from 'storybook/test';
 import { LOCAL_USAGE, usage } from '@/storybook/fixtures';
@@ -21,7 +21,7 @@ const DAY_DIGITS = 2;
  *
  * @returns The local provider's usage with thirty days, newest first.
  */
-function aMonthOfUsage() {
+function aMonthOfUsage(): UsageResponse {
   const days = Array.from({ length: MONTH_DAY_COUNT }, (_, index) => ({
     day: `2026-09-${String(MONTH_DAY_COUNT - index).padStart(DAY_DIGITS, '0')}`,
     requests: 1,
@@ -33,7 +33,7 @@ function aMonthOfUsage() {
 
 const meta = {
   component: UsageCard,
-  args: { scope: { provider: 'ollama' } },
+  args: { scope: { kind: 'provider', id: 'ollama' } },
   parameters: { api: { [USAGE_ROUTE]: usage() } },
   decorators: [
     (Story) => (
@@ -67,7 +67,7 @@ export const ShowsTheTotalsEachModelAndEachDay: Story = {
 };
 
 export const OfAWorkspace: Story = {
-  args: { scope: { workspace: 'research' } },
+  args: { scope: { kind: 'workspace', id: 'research' } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const models = within(await canvas.findByRole('list', { name: 'Usage by model' })).getAllByRole('listitem');
@@ -107,7 +107,7 @@ export const WithNoDaysKept: Story = {
 };
 
 export const BeforeAnyRequest: Story = {
-  args: { scope: { provider: 'openrouter' } },
+  args: { scope: { kind: 'provider', id: 'openrouter' } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(await canvas.findByText('No requests yet.')).toBeVisible();

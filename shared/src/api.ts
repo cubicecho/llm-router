@@ -1,3 +1,5 @@
+// DTOs for the management REST API (/api/*). Every endpoint requires `Authorization: Bearer <token>` unless auth is
+// disabled.
 import { z } from 'zod';
 import {
   httpUrlSchema,
@@ -5,14 +7,10 @@ import {
   providerNameSchema,
   workspaceConfigSchema,
   workspaceMemberSchema,
+  workspaceSlugSchema,
 } from './config.ts';
 import { NAME_DEFAULTS } from './defaults.ts';
 import { ErrorCode } from './wire.ts';
-
-/**
- * DTOs for the management REST API (/api/*).
- * All endpoints require `Authorization: Bearer <token>` unless auth is disabled.
- */
 
 /** A provider as the API returns it: its stored config without the key, plus whether one is stored. */
 export const providerStatusSchema = providerConfigSchema.omit({ apiKey: true }).extend({
@@ -161,7 +159,7 @@ export type WorkspaceStatus = z.infer<typeof workspaceStatusSchema>;
 export const createWorkspaceRequestSchema = z.object({
   name: z.string().min(1).max(NAME_DEFAULTS.workspaceNameMaxLength),
   /** Slug for the URL; derived from `name` when omitted. */
-  slug: providerNameSchema.optional(),
+  slug: workspaceSlugSchema.optional(),
   enabled: z.boolean().optional(),
   description: z.string().optional(),
   /** Members keyed by provider name; only listed providers are in the workspace. */

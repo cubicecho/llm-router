@@ -25,6 +25,37 @@ import {
 import { z } from 'zod';
 import { getToken, requireAuth } from './auth.ts';
 
+/** The content type of every body the app sends and the router answers with. */
+export const JSON_CONTENT_TYPE = 'application/json';
+/** The method of a request that names none. */
+const DEFAULT_METHOD = 'GET';
+/** Where the providers are listed and added. */
+const PROVIDERS_PATH = '/api/providers';
+/** Where the workspaces are listed and created. */
+const WORKSPACES_PATH = '/api/workspaces';
+/** Makes the router ask the provider again and not answer a model listing from its cache. */
+const REFRESH_QUERY = '?refresh=true';
+
+/**
+ * Builds the path of one provider's routes.
+ *
+ * @param name - The provider's name.
+ * @returns The path, the name escaped.
+ */
+function providerPath(name: string): string {
+  return `${PROVIDERS_PATH}/${encodeURIComponent(name)}`;
+}
+
+/**
+ * Builds the path of one workspace's routes.
+ *
+ * @param slug - The workspace's slug.
+ * @returns The path, the slug escaped.
+ */
+function workspacePath(slug: string): string {
+  return `${WORKSPACES_PATH}/${encodeURIComponent(slug)}`;
+}
+
 /** A non-2xx answer from the API, carrying the HTTP status and the server's `{ error, code, detail? }` envelope. */
 export class ApiRequestError extends Error {
   /** HTTP status of the answer. */
@@ -75,15 +106,16 @@ interface RequestOptions {
 async function send(path: string, options: RequestOptions = {}): Promise<Response> {
   const headers: Record<string, string> = {};
   const token = getToken();
-  if (token) {
+  const hasToken = token !== null && token !== '';
+  if (hasToken) {
     headers.Authorization = `Bearer ${token}`;
   }
   if (options.body !== undefined) {
-    headers['Content-Type'] = 'application/json';
+    headers['Content-Type'] = JSON_CONTENT_TYPE;
   }
 
   const response = await fetch(path, {
-    method: options.method ?? 'GET',
+    method: options.method ?? DEFAULT_METHOD,
     headers,
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
   });
@@ -122,9 +154,15 @@ async function request<Schema extends z.ZodType>(
   options: RequestOptions = {},
 ): Promise<z.infer<Schema>> {
   const response = await send(path, options);
-  const result = schema.safeParse(await response.json());
+  const unexpectedResponse = (cause: unknown) =>
+    new Error(`Unexpected response from ${options.method ?? DEFAULT_METHOD} ${path}`, { cause });
+  // A 2xx that is not JSON, such as a proxy's HTML page, is the same failure as one of the wrong shape.
+  const body: unknown = await response.json().catch((cause: unknown) => {
+    throw unexpectedResponse(cause);
+  });
+  const result = schema.safeParse(body);
   if (result.success === false) {
-    throw new Error(`Unexpected response from ${options.method ?? 'GET'} ${path}`, { cause: result.error });
+    throw unexpectedResponse(result.error);
   }
   return result.data;
 }
@@ -185,7 +223,7 @@ export function reloadConfig(): Promise<ReloadResponse> {
  * @returns Each provider's config, without its key.
  */
 export function listProviders(): Promise<ProviderStatus[]> {
-  return request('/api/providers', z.array(providerStatusSchema));
+  return request(PROVIDERS_PATH, z.array(providerStatusSchema));
 }
 
 /**
@@ -195,7 +233,7 @@ export function listProviders(): Promise<ProviderStatus[]> {
  * @returns Its config, without its key.
  */
 export function getProvider(name: string): Promise<ProviderStatus> {
-  return request(`/api/providers/${encodeURIComponent(name)}`, providerStatusSchema);
+  return request(providerPath(name), providerStatusSchema);
 }
 
 /**
@@ -205,7 +243,7 @@ export function getProvider(name: string): Promise<ProviderStatus> {
  * @returns The provider as saved.
  */
 export function createProvider(body: CreateProviderRequest): Promise<ProviderStatus> {
-  return request('/api/providers', providerStatusSchema, { method: 'POST', body });
+  return request(PROVIDERS_PATH, providerStatusSchema, { method: 'POST', body });
 }
 
 /**
@@ -216,7 +254,7 @@ export function createProvider(body: CreateProviderRequest): Promise<ProviderSta
  * @returns The provider after the change.
  */
 export function updateProvider(name: string, body: UpdateProviderRequest): Promise<ProviderStatus> {
-  return request(`/api/providers/${encodeURIComponent(name)}`, providerStatusSchema, { method: 'PATCH', body });
+  return request(providerPath(name), providerStatusSchema, { method: 'PATCH', body });
 }
 
 /**
@@ -225,7 +263,7 @@ export function updateProvider(name: string, body: UpdateProviderRequest): Promi
  * @param name - The provider's name.
  */
 export function deleteProvider(name: string): Promise<void> {
-  return requestNoContent(`/api/providers/${encodeURIComponent(name)}`, { method: 'DELETE' });
+  return requestNoContent(providerPath(name), { method: 'DELETE' });
 }
 
 /**
@@ -236,8 +274,8 @@ export function deleteProvider(name: string): Promise<void> {
  * @returns The models, or the provider under `skipped` when it could not be listed.
  */
 export function getProviderModels(name: string, options: { refresh?: boolean } = {}): Promise<ModelsResponse> {
-  const suffix = options.refresh === true ? '?refresh=true' : '';
-  return request(`/api/providers/${encodeURIComponent(name)}/models${suffix}`, modelsResponseSchema);
+  const suffix = options.refresh === true ? REFRESH_QUERY : '';
+  return request(`${providerPath(name)}/models${suffix}`, modelsResponseSchema);
 }
 
 /**
@@ -246,7 +284,7 @@ export function getProviderModels(name: string, options: { refresh?: boolean } =
  * @returns Each workspace's config and endpoint path.
  */
 export function listWorkspaces(): Promise<WorkspaceStatus[]> {
-  return request('/api/workspaces', z.array(workspaceStatusSchema));
+  return request(WORKSPACES_PATH, z.array(workspaceStatusSchema));
 }
 
 /**
@@ -256,7 +294,7 @@ export function listWorkspaces(): Promise<WorkspaceStatus[]> {
  * @returns Its config and endpoint path.
  */
 export function getWorkspace(slug: string): Promise<WorkspaceStatus> {
-  return request(`/api/workspaces/${encodeURIComponent(slug)}`, workspaceStatusSchema);
+  return request(workspacePath(slug), workspaceStatusSchema);
 }
 
 /**
@@ -266,7 +304,7 @@ export function getWorkspace(slug: string): Promise<WorkspaceStatus> {
  * @returns The workspace as saved.
  */
 export function createWorkspace(body: CreateWorkspaceRequest): Promise<WorkspaceStatus> {
-  return request('/api/workspaces', workspaceStatusSchema, { method: 'POST', body });
+  return request(WORKSPACES_PATH, workspaceStatusSchema, { method: 'POST', body });
 }
 
 /**
@@ -277,7 +315,7 @@ export function createWorkspace(body: CreateWorkspaceRequest): Promise<Workspace
  * @returns The workspace after the change.
  */
 export function updateWorkspace(slug: string, body: UpdateWorkspaceRequest): Promise<WorkspaceStatus> {
-  return request(`/api/workspaces/${encodeURIComponent(slug)}`, workspaceStatusSchema, { method: 'PATCH', body });
+  return request(workspacePath(slug), workspaceStatusSchema, { method: 'PATCH', body });
 }
 
 /**
@@ -286,7 +324,7 @@ export function updateWorkspace(slug: string, body: UpdateWorkspaceRequest): Pro
  * @param slug - The workspace's slug.
  */
 export function deleteWorkspace(slug: string): Promise<void> {
-  return requestNoContent(`/api/workspaces/${encodeURIComponent(slug)}`, { method: 'DELETE' });
+  return requestNoContent(workspacePath(slug), { method: 'DELETE' });
 }
 
 /**
@@ -296,7 +334,7 @@ export function deleteWorkspace(slug: string): Promise<void> {
  * @returns The models of its enabled members, and the members that could not be listed.
  */
 export function getWorkspaceModels(slug: string): Promise<ModelsResponse> {
-  return request(`/api/workspaces/${encodeURIComponent(slug)}/models`, modelsResponseSchema);
+  return request(`${workspacePath(slug)}/models`, modelsResponseSchema);
 }
 
 /**
@@ -311,8 +349,6 @@ export function getUsage(): Promise<UsageResponse> {
 
 /**
  * Starts every request and token count over with `DELETE /api/usage`.
- *
- * @returns Nothing; the router answers 204.
  */
 export function resetUsage(): Promise<void> {
   return requestNoContent('/api/usage', { method: 'DELETE' });

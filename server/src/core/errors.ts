@@ -1,5 +1,6 @@
 import { type ApiError, ErrorCode, HttpStatus } from '@llm-router/shared';
 import type { Response } from 'express';
+import { isRecord } from './is-record.ts';
 
 /** The HTTP status each error code is sent with. */
 const STATUS_BY_CODE = {
@@ -53,6 +54,9 @@ const factoryFor =
   (message, detail, options) =>
     new HttpError(code, message, detail, options);
 
+/** What a 500 says. The cause goes to the log, never to the caller: it can name files on the host. */
+export const INTERNAL_ERROR_MESSAGE = 'Internal server error';
+
 /** Builds a 400 for input the caller got wrong. */
 export const badInput = factoryFor(ErrorCode.BadUserInput);
 /** Builds a 401 for a missing or wrong credential. */
@@ -73,7 +77,7 @@ export const unavailable = factoryFor(ErrorCode.Unavailable);
 export const upstreamTimeout = factoryFor(ErrorCode.UpstreamTimeout);
 
 /**
- * Send an error as the JSON envelope, with the status its code maps to.
+ * Sends an error as the JSON envelope, with the status its code maps to.
  *
  * @param res - The response to write.
  * @param error - The error to render.
@@ -84,7 +88,7 @@ export function sendError(res: Response, error: HttpError): void {
 }
 
 /**
- * Extract a human-readable message from an unknown thrown value.
+ * Extracts a human-readable message from an unknown thrown value.
  *
  * @param err - The thrown value.
  * @returns An Error's message, or the value as a string.
@@ -94,4 +98,20 @@ export function errorMessage(err: unknown): string {
     return err.message;
   }
   return String(err);
+}
+
+/**
+ * Reads the status and message of an error Express's own middleware marked as safe to show.
+ *
+ * @param err - The thrown value.
+ * @returns The status and message to send, or undefined for any other error.
+ *
+ * @remarks
+ * Express raises these for a bad request, such as a malformed or oversized body.
+ */
+export function exposedClientError(err: unknown): { status: number; message: string } | undefined {
+  if (isRecord(err) && err.expose === true && typeof err.status === 'number' && typeof err.message === 'string') {
+    return { status: err.status, message: err.message };
+  }
+  return undefined;
 }

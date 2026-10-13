@@ -1,36 +1,16 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
-import type { SettingsFile } from '@llm-router/shared';
 import type { RequestHandler, Response } from 'express';
-import { authDisabledByEnv, envToken } from '../config/env.ts';
+import type { AuthConfig } from '../config/effective-auth.ts';
 import { forbidden, type HttpError, sendError, unauthenticated } from '../core/errors.ts';
 
 /** Writes a refusal in the envelope the path's callers expect. */
 export type ErrorResponder = (res: Response, error: HttpError) => void;
 
-/** The auth in force for a request. */
-export interface AuthConfig {
-  /** False lets every request through. */
-  enabled: boolean;
-  /** The bearer token to match; null means none is configured, so every request is refused while enabled. */
-  token: string | null;
-}
+/** The hash two tokens are reduced to before they are compared, so the comparison shows neither one's length. */
+const TOKEN_DIGEST = 'sha256';
 
-/**
- * Resolves the auth actually in force: settings.json, as overridden by the environment.
- *
- * @param settings - The stored auth settings.
- * @param [env] - Read for `SECURE_LOCAL_NET`, which turns auth off, and `LLM_ROUTER_TOKEN`, which replaces the token.
- * @returns Whether auth is on, and the token to match.
- */
-export function effectiveAuth(
-  settings: Pick<SettingsFile, 'authEnabled' | 'authToken'>,
-  env?: NodeJS.ProcessEnv,
-): AuthConfig {
-  return {
-    enabled: settings.authEnabled && !authDisabledByEnv(env),
-    token: envToken(env) ?? settings.authToken,
-  };
-}
+/** The host names of this machine, as `URL` reports them. */
+const LOOPBACK_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
 
 /**
  * Compares two tokens in constant time, without leaking their length (it compares sha256 digests).
@@ -40,8 +20,8 @@ export function effectiveAuth(
  * @returns True when the tokens are identical.
  */
 export function tokensEqual(a: string, b: string): boolean {
-  const digestA = createHash('sha256').update(a).digest();
-  const digestB = createHash('sha256').update(b).digest();
+  const digestA = createHash(TOKEN_DIGEST).update(a).digest();
+  const digestB = createHash(TOKEN_DIGEST).update(b).digest();
   return timingSafeEqual(digestA, digestB);
 }
 
@@ -54,7 +34,7 @@ export function tokensEqual(a: string, b: string): boolean {
 export function isLoopbackOrigin(origin: string): boolean {
   try {
     const { hostname } = new URL(origin);
-    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]' || hostname === '::1';
+    return LOOPBACK_HOSTNAMES.has(hostname);
   } catch {
     return false;
   }
@@ -78,7 +58,9 @@ export function createOriginMiddleware(
   return (req, res, next) => {
     const header = req.headers.origin;
     const origin = Array.isArray(header) ? header[0] : header;
-    if (!origin || isLoopbackOrigin(origin) || getAllowedOrigins().includes(origin)) {
+    const hasOrigin = origin !== undefined && origin !== '';
+    const isAllowed = hasOrigin === false || isLoopbackOrigin(origin) || getAllowedOrigins().includes(origin);
+    if (isAllowed) {
       next();
       return;
     }
@@ -101,13 +83,15 @@ export function createAuthMiddleware(getAuth: () => AuthConfig, reject: ErrorRes
       next();
       return;
     }
-    if (!token) {
+    const isTokenMissing = token === null || token === '';
+    if (isTokenMissing) {
       reject(res, unauthenticated('Auth is enabled but no token is configured'));
       return;
     }
     const header = req.headers.authorization;
     const provided = header?.match(/^Bearer\s+(.+)$/i)?.[1];
-    if (!provided || !tokensEqual(provided, token)) {
+    const isAuthorized = provided !== undefined && tokensEqual(provided, token);
+    if (isAuthorized === false) {
       reject(res, unauthenticated('Unauthorized'));
       return;
     }

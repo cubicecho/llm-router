@@ -1,6 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { isRecord } from './is-record.ts';
 
+/** The version reported when package.json cannot tell. */
+const UNKNOWN_VERSION = '0.0.0';
+
 /**
  * Reads the released version from the root package.json.
  *
@@ -14,9 +17,10 @@ function readVersion(): string {
   try {
     const pkgUrl = new URL('../../../package.json', import.meta.url);
     const pkg: unknown = JSON.parse(readFileSync(pkgUrl, 'utf8'));
-    return isRecord(pkg) && typeof pkg.version === 'string' ? pkg.version : '0.0.0';
+    const version = isRecord(pkg) ? pkg.version : undefined;
+    return typeof version === 'string' ? version : UNKNOWN_VERSION;
   } catch {
-    return '0.0.0';
+    return UNKNOWN_VERSION;
   }
 }
 

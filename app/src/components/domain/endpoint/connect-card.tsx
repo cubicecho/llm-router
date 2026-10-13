@@ -1,22 +1,31 @@
 import { useState } from 'react';
 import { CardLayout } from '@/components/card-layout';
 import { DescriptionList, PropertyRow } from '@/components/description-list';
+import {
+  curlSnippet,
+  envSnippet,
+  pythonSnippet,
+  type SnippetInput,
+} from '@/components/domain/endpoint/connect-snippets';
+import { endpointUrl } from '@/components/domain/endpoint/endpoint';
 import { Section } from '@/components/section';
 import { Button } from '@/components/ui/button';
 import { CodeBlock } from '@/components/ui/code';
 import { CopyButton } from '@/components/ui/copy-button';
 import { Eye, EyeOff } from '@/components/ui/icons';
 import { useToast } from '@/components/ui/toast';
-import { getToken } from '@/lib/auth';
-import { curlSnippet, envSnippet, pythonSnippet, type SnippetInput } from '@/lib/connect-snippets';
-import { endpointUrl } from '@/lib/endpoint';
+import { useToken } from '@/lib/auth';
 import { useRouterStatus } from '@/lib/queries';
 import { COPY_FAILED_MESSAGE } from '@/lib/toast';
 
+/** Stands in for the token when the browser holds none. */
 const TOKEN_PLACEHOLDER = '<YOUR_TOKEN>';
+/** Shown in place of the token until it is revealed. */
 const TOKEN_MASK = '••••••••••••';
+/** Stands in for a model id when the endpoint serves none yet. */
 const MODEL_PLACEHOLDER = '<provider>/<model>';
 
+/** The examples the card shows, in order. */
 const SNIPPETS = [
   { title: 'Environment', build: envSnippet },
   { title: 'curl', build: curlSnippet },
@@ -44,10 +53,11 @@ export function ConnectCard({ path, model = MODEL_PLACEHOLDER, description }: Co
 
   // Assume auth until status says otherwise: a placeholder key is easier to delete than a missing one is to diagnose.
   const authEnabled = status?.authEnabled ?? true;
-  const token = getToken() ?? undefined;
-  const copyToken = authEnabled ? (token ?? TOKEN_PLACEHOLDER) : undefined;
+  const token = useToken() ?? undefined;
+  const hasToken = token !== undefined && token !== '';
+  const copyToken = authEnabled ? (hasToken ? token : TOKEN_PLACEHOLDER) : undefined;
   const maskedToken = isRevealed ? token : TOKEN_MASK;
-  const displayToken = authEnabled ? (token ? maskedToken : TOKEN_PLACEHOLDER) : undefined;
+  const displayToken = authEnabled ? (hasToken ? maskedToken : TOKEN_PLACEHOLDER) : undefined;
   const baseUrl = endpointUrl(path);
   const input = (snippetToken: string | undefined): SnippetInput => ({ baseUrl, model, token: snippetToken });
 
@@ -58,7 +68,7 @@ export function ConnectCard({ path, model = MODEL_PLACEHOLDER, description }: Co
       description={description}
       actionSlot={
         authEnabled &&
-        token !== undefined && (
+        hasToken && (
           <Button
             variant="outline"
             size="sm"
@@ -104,7 +114,7 @@ export function ConnectCard({ path, model = MODEL_PLACEHOLDER, description }: Co
           ))}
           {authEnabled && (
             <p className="text-foreground/60 text-xs">
-              Copied snippets include your bearer token{token ? '' : ' placeholder'}. Treat them as secrets.
+              Copied snippets include your bearer token{hasToken ? '' : ' placeholder'}. Treat them as secrets.
             </p>
           )}
         </>

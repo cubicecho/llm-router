@@ -1,4 +1,3 @@
-import path from 'node:path';
 import {
   authDisabledByEnv,
   dataDir as envDataDir,
@@ -35,16 +34,18 @@ async function main(): Promise<void> {
   const host = listenHost(store.getSettings().host);
   const onListen = () => {
     console.log(`[server] listening on http://${host ?? 'localhost'}:${port} (data dir: ${dataDir})`);
-    const settings = store.getSettings();
-    if (authDisabledByEnv()) {
+    const isOpenByEnv = authDisabledByEnv();
+    const isOpenBySettings = store.getSettings().authEnabled === false;
+    const isTokenFromEnv = envToken() !== undefined;
+    if (isOpenByEnv) {
       console.warn('[auth] SECURE_LOCAL_NET is on: /api and /v1 are open to this network. Private networks only.');
-    } else if (settings.authEnabled === false) {
+    } else if (isOpenBySettings) {
       console.warn('[auth] authEnabled is false in settings.json: /api and /v1 are open.');
-    } else if (envToken() !== undefined) {
+    } else if (isTokenFromEnv) {
       console.log('[auth] bearer token from LLM_ROUTER_TOKEN, which overrides settings.json');
     } else {
       // The path, never the token: boot logs are kept and shipped, and the token is printed once, when it is generated.
-      console.log(`[auth] bearer token is authToken in ${path.join(dataDir, 'config/settings.json')}`);
+      console.log(`[auth] bearer token is authToken in ${store.settingsFile}`);
     }
   };
   const httpServer = host ? app.listen(port, host, onListen) : app.listen(port, onListen);

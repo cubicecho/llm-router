@@ -28,12 +28,14 @@ export function namespaceModel(providerName: string, upstreamId: string): string
  */
 export function splitNamespacedModel(routedId: string, providerNames: readonly string[]): SplitModel | undefined {
   const separatorAt = routedId.indexOf(MODEL_SEPARATOR);
-  if (separatorAt <= 0) {
+  const hasProviderPrefix = separatorAt > 0;
+  if (hasProviderPrefix === false) {
     return undefined;
   }
   const providerName = routedId.slice(0, separatorAt);
   const upstreamId = routedId.slice(separatorAt + MODEL_SEPARATOR.length);
-  if (upstreamId === '' || providerNames.includes(providerName) === false) {
+  const isRoutable = upstreamId !== '' && providerNames.includes(providerName);
+  if (isRoutable === false) {
     return undefined;
   }
   return { providerName, upstreamId };
