@@ -7,6 +7,7 @@ import { Alert } from '@/components/ui/alert';
 import { FormElement } from '@/components/ui/form-element';
 import { unsavedChangesOf, useServerError } from '@/lib/form-dialog';
 import { linesToRecord, malformedLines, recordToLines } from '@/lib/key-value';
+import { providerLabel } from '@/lib/provider-label';
 import { useCreateProvider, useUpdateProvider } from '@/lib/queries';
 import { useSuccessToast } from '@/lib/toast';
 
@@ -62,7 +63,7 @@ export function ProviderDialog({ open, onOpenChange, provider }: ProviderDialogP
             description: value.description.trim(),
             ...(apiKey ? { apiKey } : keyChange),
           });
-          toastSuccess(`Saved provider ${saved.name}`);
+          toastSuccess(`Saved provider ${providerLabel(saved)}`);
         } else {
           const saved = await create.mutateAsync({
             name: value.name.trim(),
@@ -71,7 +72,7 @@ export function ProviderDialog({ open, onOpenChange, provider }: ProviderDialogP
             description: value.description.trim() || undefined,
             apiKey: apiKey || undefined,
           });
-          toastSuccess(`Added provider ${saved.name}`);
+          toastSuccess(`Added provider ${providerLabel(saved)}`);
         }
         onOpenChange(false);
       });
@@ -83,7 +84,7 @@ export function ProviderDialog({ open, onOpenChange, provider }: ProviderDialogP
       open={open}
       onOpenChange={onOpenChange}
       size="lg"
-      title={isEdit ? `Edit ${provider.name}` : 'Add provider'}
+      title={isEdit ? `Edit ${providerLabel(provider)}` : 'Add provider'}
       description="A provider is one OpenAI-compatible server. Its models are served as <name>/<model>."
       hasUnsavedChanges={unsavedChangesOf(form)}
       footerActionsSlot={(close) => (

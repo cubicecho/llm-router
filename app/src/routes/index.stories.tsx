@@ -109,7 +109,7 @@ export const OpensTheEditDialogOfARow: Story = {
     const canvas = within(canvasElement);
     const body = within(canvasElement.ownerDocument.body);
     await userEvent.click(await canvas.findByRole('button', { name: 'Edit Ollama' }));
-    const dialog = within(await body.findByRole('dialog', { name: 'Edit ollama' }));
+    const dialog = within(await body.findByRole('dialog', { name: 'Edit Ollama' }));
     await expect(dialog.getByRole('textbox', { name: /^Base URL/ })).toHaveValue('http://localhost:11434/v1');
   },
 };
