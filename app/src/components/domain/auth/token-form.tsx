@@ -2,6 +2,7 @@ import { useAppForm } from '@/components/app-form';
 import { CenteredLayout } from '@/components/centered-layout';
 import { PasswordField } from '@/components/password-field';
 import { Code } from '@/components/ui/code';
+import { FormElement } from '@/components/ui/form-element';
 import { KeyRound } from '@/components/ui/icons';
 
 interface TokenFormProps {
@@ -34,13 +35,7 @@ export function TokenForm({ onUnlock }: TokenFormProps) {
         </>
       }
       contentSlot={
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            form.handleSubmit();
-          }}
-          className="flex flex-col gap-4"
-        >
+        <FormElement onSubmit={() => form.handleSubmit()} className="gap-4">
           <PasswordField
             form={form}
             name="token"
@@ -57,7 +52,7 @@ export function TokenForm({ onUnlock }: TokenFormProps) {
               </form.AppForm>
             )}
           </form.Subscribe>
-        </form>
+        </FormElement>
       }
     />
   );
