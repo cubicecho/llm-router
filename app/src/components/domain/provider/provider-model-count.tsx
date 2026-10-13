@@ -1,8 +1,8 @@
 import type { ProviderStatus } from '@llm-router/shared';
 import { Badge } from '@/components/ui/badge';
 import { formatCount } from '@/lib/format';
+import { listingFailure } from '@/lib/listing-failure';
 import { useProviderModels } from '@/lib/queries';
-import { apiErrorMessage } from '@/lib/toast';
 
 interface ProviderModelCountProps {
   /** The provider to count the models of. A disabled one is not asked and shows nothing. */
@@ -24,15 +24,8 @@ export function ProviderModelCount({ provider }: ProviderModelCountProps) {
     );
   }
   // The router answers 200 with the provider under `skipped` when the provider itself could not be listed.
-  if (listing.isError) {
-    return (
-      <Badge variant="destructive" title={apiErrorMessage(listing.error)}>
-        listing failed
-      </Badge>
-    );
-  }
-  const failure = listing.data.skipped[0]?.error;
-  if (failure !== undefined) {
+  const failure = listingFailure(listing);
+  if (failure !== undefined || listing.isError) {
     return (
       <Badge variant="destructive" title={failure}>
         listing failed

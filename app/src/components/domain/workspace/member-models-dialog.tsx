@@ -7,9 +7,9 @@ import { Alert } from '@/components/ui/alert';
 import { FormElement } from '@/components/ui/form-element';
 import { useToast } from '@/components/ui/toast';
 import { unsavedChangesOf, useServerError } from '@/lib/form-dialog';
+import { listingFailure } from '@/lib/listing-failure';
 import { providerLabel } from '@/lib/provider-label';
 import { useProviderModels, useUpdateWorkspace } from '@/lib/queries';
-import { apiErrorMessage } from '@/lib/toast';
 
 /** Ties the submit button in the footer to the form in the body. */
 const FORM_ID = 'member-models-form';
@@ -41,7 +41,7 @@ export function MemberModelsDialog({ open, onOpenChange, workspace, provider }: 
   // A stored model the provider no longer lists stays choosable, so opening the dialog never drops it silently.
   const listed = (listing.data?.models ?? []).map((model) => model.upstreamId);
   const options = [...new Set([...listed, ...stored])].map((upstreamId) => ({ value: upstreamId, label: upstreamId }));
-  const listingError = listing.data?.skipped[0]?.error ?? (listing.error ? apiErrorMessage(listing.error) : undefined);
+  const listingError = listingFailure(listing);
 
   const form = useAppForm({
     defaultValues: { models: stored as readonly string[] },
