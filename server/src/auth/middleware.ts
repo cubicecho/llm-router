@@ -52,7 +52,9 @@ export function createOriginMiddleware(
   return (req, res, next) => {
     const header = req.headers.origin;
     const origin = Array.isArray(header) ? header[0] : header;
-    if (!origin || isLoopbackOrigin(origin) || getAllowedOrigins().includes(origin)) {
+    const hasOrigin = origin !== undefined && origin !== '';
+    const isAllowed = hasOrigin === false || isLoopbackOrigin(origin) || getAllowedOrigins().includes(origin);
+    if (isAllowed) {
       next();
       return;
     }
@@ -75,13 +77,15 @@ export function createAuthMiddleware(getAuth: () => AuthConfig, reject: ErrorRes
       next();
       return;
     }
-    if (!token) {
+    const isTokenMissing = token === null || token === '';
+    if (isTokenMissing) {
       reject(res, unauthenticated('Auth is enabled but no token is configured'));
       return;
     }
     const header = req.headers.authorization;
     const provided = header?.match(/^Bearer\s+(.+)$/i)?.[1];
-    if (!provided || !tokensEqual(provided, token)) {
+    const isAuthorized = provided !== undefined && tokensEqual(provided, token);
+    if (isAuthorized === false) {
       reject(res, unauthenticated('Unauthorized'));
       return;
     }

@@ -14,7 +14,8 @@ function readVersion(): string {
   try {
     const pkgUrl = new URL('../../../package.json', import.meta.url);
     const pkg: unknown = JSON.parse(readFileSync(pkgUrl, 'utf8'));
-    return isRecord(pkg) && typeof pkg.version === 'string' ? pkg.version : '0.0.0';
+    const version = isRecord(pkg) ? pkg.version : undefined;
+    return typeof version === 'string' ? version : '0.0.0';
   } catch {
     return '0.0.0';
   }

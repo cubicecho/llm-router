@@ -83,7 +83,8 @@ export function createApp(deps: AppDeps): express.Express {
     createEndpointRouter(gateway, (req) => {
       const slug = req.params[SLUG_PARAM];
       const workspace = typeof slug === 'string' ? store.getWorkspace(slug) : undefined;
-      if (!workspace?.enabled) {
+      const isUnserved = workspace === undefined || workspace.enabled === false;
+      if (isUnserved) {
         throw notFound(`Unknown workspace "${slug}"`);
       }
       return workspaceScope(workspace, store);

@@ -73,7 +73,8 @@ export class ModelCatalog {
    */
   list(provider: ProviderConfig): Promise<UpstreamModel[]> {
     const cached = this.listings.get(provider.name);
-    if (cached && cached.provider === provider && cached.expiresAt > Date.now()) {
+    const isFresh = cached?.provider === provider && cached.expiresAt > Date.now();
+    if (isFresh) {
       return cached.models;
     }
     const models = this.fetchModels(provider);

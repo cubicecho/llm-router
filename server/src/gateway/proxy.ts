@@ -59,6 +59,16 @@ interface RoutedBody {
 }
 
 /**
+ * Tells whether a request body names a model.
+ *
+ * @param body - The parsed request body.
+ * @returns True for a JSON object whose `model` is a string that is not empty.
+ */
+function namesModel(body: unknown): body is Record<string, unknown> & { model: string } {
+  return isRecord(body) && typeof body.model === 'string' && body.model !== '';
+}
+
+/**
  * Finds the scope member a request body's `model` names.
  *
  * @param scope - The endpoint's members.
@@ -67,7 +77,7 @@ interface RoutedBody {
  * @throws A 400 HttpError when the body has no `model`; a ModelNotFoundError when the endpoint does not serve it.
  */
 export function routeBody(scope: EndpointScope, body: unknown): RoutedBody {
-  if (isRecord(body) === false || typeof body.model !== 'string' || body.model === '') {
+  if (namesModel(body) === false) {
     throw badInput('The request body must be a JSON object with a "model" string, as <provider>/<model>');
   }
   const split = splitNamespacedModel(
@@ -75,7 +85,7 @@ export function routeBody(scope: EndpointScope, body: unknown): RoutedBody {
     scope.members.map((member) => member.provider.name),
   );
   const member = scope.members.find((candidate) => candidate.provider.name === split?.providerName);
-  if (!split || !member || exposesModel(member, split.upstreamId) === false) {
+  if (split === undefined || member === undefined || exposesModel(member, split.upstreamId) === false) {
     throw new ModelNotFoundError(body.model);
   }
   return { member, body: { ...body, model: split.upstreamId } };
@@ -90,11 +100,13 @@ export function routeBody(scope: EndpointScope, body: unknown): RoutedBody {
  * the client already chose.
  */
 export function withStreamUsage(path: string, body: Record<string, unknown>): Record<string, unknown> {
-  if (STREAM_USAGE_PATHS.has(path) === false || body.stream !== true) {
+  const isStreamedCompletion = STREAM_USAGE_PATHS.has(path) && body.stream === true;
+  if (isStreamedCompletion === false) {
     return body;
   }
   const options = isRecord(body.stream_options) ? body.stream_options : {};
-  if (options.include_usage !== undefined) {
+  const hasClientChosen = options.include_usage !== undefined;
+  if (hasClientChosen) {
     return body;
   }
   return { ...body, stream_options: { ...options, include_usage: true } };

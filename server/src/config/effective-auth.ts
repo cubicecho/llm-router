@@ -21,7 +21,7 @@ export function effectiveAuth(
   env?: NodeJS.ProcessEnv,
 ): AuthConfig {
   return {
-    enabled: settings.authEnabled && !authDisabledByEnv(env),
+    enabled: settings.authEnabled && authDisabledByEnv(env) === false,
     token: envToken(env) ?? settings.authToken,
   };
 }
