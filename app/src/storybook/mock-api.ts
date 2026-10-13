@@ -1,6 +1,6 @@
 import { type ApiError, ErrorCode, HttpStatus } from '@llm-router/shared';
 import { fn } from 'storybook/test';
-import { clearToken, setToken } from '@/lib/auth';
+import { resetAuth } from '@/lib/auth';
 
 /** What a mocked route was asked: the parsed JSON body and the request URL. */
 interface MockRequest {
@@ -119,7 +119,6 @@ export function installApiMock(routes: ApiRoutes = {}): () => void {
   return () => {
     window.fetch = realFetch;
     // A 401 in one story must not leave the next one behind the token screen.
-    setToken('story');
-    clearToken();
+    resetAuth();
   };
 }

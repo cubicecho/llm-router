@@ -9,7 +9,7 @@ import { Lock, Settings } from '@/components/ui/icons';
 import { useThemePreference } from '@/components/ui/theme-preference';
 import { ToastProvider } from '@/components/ui/toast';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { clearToken, requireAuth, setToken, useNeedsAuth } from '@/lib/auth';
+import { lock, unlock, useNeedsAuth } from '@/lib/auth';
 import { formatCount, joinStats } from '@/lib/format';
 import { useRouterStatus } from '@/lib/queries';
 
@@ -41,14 +41,14 @@ function RootComponent() {
   const queryClient = useQueryClient();
 
   // Any API call that comes back 401 swaps the app for the token screen; a token brings it back and refetches.
-  const unlock = (token: string) => {
-    setToken(token);
+  const unlockAndRefetch = (token: string) => {
+    unlock(token);
     queryClient.invalidateQueries();
   };
 
   return (
     <TooltipProvider>
-      <ToastProvider>{needsAuth ? <TokenForm onUnlock={unlock} /> : <AppFrame />}</ToastProvider>
+      <ToastProvider>{needsAuth ? <TokenForm onUnlock={unlockAndRefetch} /> : <AppFrame />}</ToastProvider>
     </TooltipProvider>
   );
 }
@@ -71,12 +71,6 @@ function AppFrame() {
       ? pathname === '/' || pathname.startsWith('/providers/')
       : pathname === to || pathname.startsWith(`${to}/`);
 
-  // Clears the stored bearer token and brings the token screen back, for shared machines.
-  const lock = () => {
-    clearToken();
-    requireAuth();
-  };
-
   return (
     <AppLayout
       sidebarNavSlot={NAV_ITEMS.map(({ to, label, icon: Icon }) => (
@@ -93,6 +87,7 @@ function AppFrame() {
             size="icon-sm"
             label="Lock (forget the stored token)"
             hint="Lock — forget the stored token"
+            // For shared machines: the token is forgotten and the token screen comes back.
             onClick={lock}
             iconSlot={<Lock />}
           />

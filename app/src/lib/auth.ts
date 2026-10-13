@@ -30,25 +30,33 @@ export function getToken(): string | null {
 }
 
 /**
- * Stores the bearer token and lowers the needs-auth flag.
+ * Stores the bearer token and lowers the needs-auth flag, which takes the token screen away.
  *
  * @param token - The token to send on every API request.
  */
-export function setToken(token: string): void {
+export function unlock(token: string): void {
   window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
   needsAuth = false;
   emit();
 }
 
-/** Forgets the stored bearer token; the needs-auth flag is left as it is. */
-export function clearToken(): void {
+/** Forgets the stored bearer token and raises the needs-auth flag, which brings the token screen back. */
+export function lock(): void {
   window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+  needsAuth = true;
+  emit();
+}
+
+/** Forgets the stored bearer token and lowers the needs-auth flag: a browser that has not met the router yet. */
+export function resetAuth(): void {
+  window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+  needsAuth = false;
   emit();
 }
 
 /** Raises the needs-auth flag; the API client calls it whenever a request comes back 401. */
 export function requireAuth(): void {
-  if (!needsAuth) {
+  if (needsAuth === false) {
     needsAuth = true;
     emit();
   }
