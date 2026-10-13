@@ -1,6 +1,7 @@
 import type { Decorator } from '@storybook/react-vite';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
+  type AnyRouter,
   createMemoryHistory,
   createRootRoute,
   createRoute,
@@ -27,7 +28,7 @@ function createStoryQueryClient(): QueryClient {
  * @param route - The path the app starts at.
  * @returns A router over the generated route tree, with in-memory history.
  */
-function createAppRouter(route: string) {
+function createAppRouter(route: string): AnyRouter {
   return createRouter({ routeTree, history: createMemoryHistory({ initialEntries: [route] }) });
 }
 
@@ -37,7 +38,7 @@ function createAppRouter(route: string) {
  * @param Story - Rendered at `/`.
  * @returns The router; every other path renders its own pathname, which a story can assert on after a navigation.
  */
-function createComponentRouter(Story: () => React.ReactNode) {
+function createComponentRouter(Story: () => React.ReactNode): AnyRouter {
   const rootRoute = createRootRoute();
   const storyRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: Story });
   const elsewhereRoute = createRoute({
@@ -80,8 +81,7 @@ export const withProviders: Decorator = (Story, { parameters }) => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* biome-ignore lint/suspicious/noExplicitAny: the story router is not the registered app router */}
-      <RouterProvider router={router as any} />
+      <RouterProvider router={router} />
     </QueryClientProvider>
   );
 };

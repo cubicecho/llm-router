@@ -90,7 +90,10 @@ export const LocksAgain: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const [lock] = await canvas.findAllByRole('button', { name: LOCK_LABEL });
-    await userEvent.click(lock as HTMLElement);
+    if (lock === undefined) {
+      throw new Error('The frame shows no lock button');
+    }
+    await userEvent.click(lock);
     await expect(await canvas.findByRole('heading', { name: 'Authentication required' })).toBeVisible();
     await expect(getToken()).toBeNull();
   },

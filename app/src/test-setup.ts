@@ -3,11 +3,11 @@ import '@testing-library/jest-dom/vitest';
 // jsdom lacks ResizeObserver, which Radix popper-based primitives (Tooltip,
 // Select, …) touch when they open. Provide a no-op implementation.
 if (typeof globalThis.ResizeObserver === 'undefined') {
-  globalThis.ResizeObserver = class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  } as unknown as typeof ResizeObserver;
+  globalThis.ResizeObserver = class NoopResizeObserver implements ResizeObserver {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  };
 }
 
 // jsdom's window.scrollTo throws "Not implemented"; some libraries call it.
