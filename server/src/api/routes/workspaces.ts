@@ -14,6 +14,7 @@ import { badInput, conflict, notFound } from '../../core/errors.ts';
 import { workspaceScope } from '../../gateway/endpoint-scope.ts';
 import { listScopeModels } from '../../gateway/models.ts';
 import type { ApiDeps } from '../deps.ts';
+import { keptOrCleared } from './kept-or-cleared.ts';
 
 /**
  * Names the path of a workspace's OpenAI base URL.
@@ -108,8 +109,7 @@ export function createWorkspaceRoutes({ store, catalog, usage }: ApiDeps): Route
       name,
       slug,
       enabled: update.enabled ?? existing.enabled,
-      // An empty description clears it; one left out keeps the stored one.
-      description: update.description === undefined ? existing.description : update.description || undefined,
+      description: keptOrCleared(update.description, existing.description),
       members: update.members ?? existing.members,
     });
     await store.saveWorkspace(next);
