@@ -1,7 +1,7 @@
 import type { ProviderStatus } from '@llm-router/shared';
 import { ConfirmButton } from '@/components/confirm-button';
+import { providerLabel } from '@/components/domain/provider/provider-label';
 import { Trash2 } from '@/components/ui/icons';
-import { providerLabel } from '@/lib/provider-label';
 import { useDeleteProvider } from '@/lib/queries';
 import { useApiErrorToast, useSuccessToast } from '@/lib/toast';
 

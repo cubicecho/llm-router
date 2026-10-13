@@ -7,6 +7,7 @@ import { EnabledSetting } from '@/components/domain/enabled/enabled-setting';
 import { ModelsCard } from '@/components/domain/model/models-card';
 import { DeleteProviderButton } from '@/components/domain/provider/delete-provider-button';
 import { ProviderDialog } from '@/components/domain/provider/provider-dialog';
+import { providerLabel } from '@/components/domain/provider/provider-label';
 import { UsageCard } from '@/components/domain/usage/usage-card';
 import { PAGE_BODY_CLASS } from '@/components/layouts/page-body';
 import { PageLayout } from '@/components/page-layout';
@@ -14,7 +15,6 @@ import { QueryState } from '@/components/query-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Pencil, RefreshCw } from '@/components/ui/icons';
-import { providerLabel } from '@/lib/provider-label';
 import { useProvider, useProviderModels, useRefreshProviderModels, useUpdateProvider } from '@/lib/queries';
 import { useApiErrorToast, useSuccessToast } from '@/lib/toast';
 

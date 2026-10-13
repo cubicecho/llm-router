@@ -1,6 +1,13 @@
 import { useState } from 'react';
 import { CardLayout } from '@/components/card-layout';
 import { DescriptionList, PropertyRow } from '@/components/description-list';
+import {
+  curlSnippet,
+  envSnippet,
+  pythonSnippet,
+  type SnippetInput,
+} from '@/components/domain/endpoint/connect-snippets';
+import { endpointUrl } from '@/components/domain/endpoint/endpoint';
 import { Section } from '@/components/section';
 import { Button } from '@/components/ui/button';
 import { CodeBlock } from '@/components/ui/code';
@@ -8,8 +15,6 @@ import { CopyButton } from '@/components/ui/copy-button';
 import { Eye, EyeOff } from '@/components/ui/icons';
 import { useToast } from '@/components/ui/toast';
 import { useToken } from '@/lib/auth';
-import { curlSnippet, envSnippet, pythonSnippet, type SnippetInput } from '@/lib/connect-snippets';
-import { endpointUrl } from '@/lib/endpoint';
 import { useRouterStatus } from '@/lib/queries';
 import { COPY_FAILED_MESSAGE } from '@/lib/toast';
 

@@ -7,6 +7,7 @@ import { EnabledBadge } from '@/components/domain/enabled/enabled-badge';
 import { ConnectCard } from '@/components/domain/endpoint/connect-card';
 import { DeleteProviderButton } from '@/components/domain/provider/delete-provider-button';
 import { ProviderDialog } from '@/components/domain/provider/provider-dialog';
+import { providerLabel } from '@/components/domain/provider/provider-label';
 import { ProviderModelCount } from '@/components/domain/provider/provider-model-count';
 import { ProviderUsageText } from '@/components/domain/provider/provider-usage-text';
 import { PAGE_BODY_CLASS } from '@/components/layouts/page-body';
@@ -19,7 +20,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Pencil, Plus } from '@/components/ui/icons';
 import { NEW_DIALOG_KEY, useEntityDialog } from '@/lib/entity-dialog';
-import { providerLabel } from '@/lib/provider-label';
 import { useProviders } from '@/lib/queries';
 
 /** The `/` route. */

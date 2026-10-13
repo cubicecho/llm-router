@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { CardLayout } from '@/components/card-layout';
+import { dayLabel } from '@/components/domain/usage/usage';
 import { RowList, RowListItem } from '@/components/layouts/row-list';
 import { ListItem } from '@/components/list-item';
 import { EmptyState } from '@/components/page';
@@ -8,7 +9,6 @@ import { Section } from '@/components/section';
 import { Button } from '@/components/ui/button';
 import { USAGE_VIEW_DEFAULTS } from '@/lib/defaults';
 import { formatCount } from '@/lib/format';
-import { dayLabel } from '@/lib/usage';
 import { type UsageScope, useScopeUsage } from './scope-usage.ts';
 import { UsageText } from './usage-text.tsx';
 

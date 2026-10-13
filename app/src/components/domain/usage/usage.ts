@@ -1,5 +1,5 @@
 import type { TokenUsage } from '@llm-router/shared';
-import { formatCount, formatDate, joinStats } from './format.ts';
+import { formatCount, formatDate, joinStats } from '@/lib/format';
 
 /** Token counts are shortened to one decimal place: 1.3M, 340.1K. */
 const COMPACT_TOKENS = new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 });

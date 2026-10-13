@@ -1,13 +1,13 @@
 import { httpUrlSchema, type ProviderStatus, providerNameSchema } from '@llm-router/shared';
 import { CheckboxField, InputField, SwitchField, TextareaField, useAppForm } from '@/components/app-form';
 import { DialogLayout } from '@/components/dialog-layout';
+import { linesToRecord, malformedLines, recordToLines } from '@/components/domain/provider/key-value';
+import { providerLabel } from '@/components/domain/provider/provider-label';
 import { FormDialogFooter } from '@/components/layouts/form-dialog-footer';
 import { PasswordField } from '@/components/password-field';
 import { Alert } from '@/components/ui/alert';
 import { FormElement } from '@/components/ui/form-element';
 import { unsavedChangesOf, useServerError } from '@/lib/form-dialog';
-import { linesToRecord, malformedLines, recordToLines } from '@/lib/key-value';
-import { providerLabel } from '@/lib/provider-label';
 import { useCreateProvider, useUpdateProvider } from '@/lib/queries';
 import { useSuccessToast } from '@/lib/toast';
 

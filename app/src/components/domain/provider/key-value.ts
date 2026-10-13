@@ -1,4 +1,4 @@
-import { nonBlankLines } from './lines.ts';
+import { nonBlankLines } from '@/lib/lines';
 
 /**
  * Writes a record as editable text.

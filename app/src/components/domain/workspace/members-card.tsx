@@ -2,6 +2,7 @@ import type { ProviderStatus, WorkspaceStatus } from '@llm-router/shared';
 import { Link } from '@tanstack/react-router';
 import { CardLayout } from '@/components/card-layout';
 import { EnabledBadge } from '@/components/domain/enabled/enabled-badge';
+import { providerLabel } from '@/components/domain/provider/provider-label';
 import { MemberModelsDialog } from '@/components/domain/workspace/member-models-dialog';
 import { EmptyState } from '@/components/page';
 import { QueryState } from '@/components/query-state';
@@ -10,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useEntityDialog } from '@/lib/entity-dialog';
 import { formatCount } from '@/lib/format';
-import { providerLabel } from '@/lib/provider-label';
 import { useProviders, useUpdateWorkspace } from '@/lib/queries';
 import { useApiErrorToast } from '@/lib/toast';
 

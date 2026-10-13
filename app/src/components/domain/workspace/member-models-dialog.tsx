@@ -1,13 +1,13 @@
 import type { ProviderStatus, WorkspaceStatus } from '@llm-router/shared';
 import { useAppForm } from '@/components/app-form';
 import { DialogLayout } from '@/components/dialog-layout';
+import { providerLabel } from '@/components/domain/provider/provider-label';
 import { FormDialogFooter } from '@/components/layouts/form-dialog-footer';
 import { MultiSelectField } from '@/components/multi-select-field';
 import { Alert } from '@/components/ui/alert';
 import { FormElement } from '@/components/ui/form-element';
 import { unsavedChangesOf, useServerError } from '@/lib/form-dialog';
 import { listingFailure } from '@/lib/listing-failure';
-import { providerLabel } from '@/lib/provider-label';
 import { useProviderModels, useUpdateWorkspace } from '@/lib/queries';
 import { useSuccessToast } from '@/lib/toast';
 
