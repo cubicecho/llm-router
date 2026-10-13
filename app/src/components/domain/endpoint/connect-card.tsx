@@ -7,7 +7,7 @@ import { CodeBlock } from '@/components/ui/code';
 import { CopyButton } from '@/components/ui/copy-button';
 import { Eye, EyeOff } from '@/components/ui/icons';
 import { useToast } from '@/components/ui/toast';
-import { getToken } from '@/lib/auth';
+import { useToken } from '@/lib/auth';
 import { curlSnippet, envSnippet, pythonSnippet, type SnippetInput } from '@/lib/connect-snippets';
 import { endpointUrl } from '@/lib/endpoint';
 import { useRouterStatus } from '@/lib/queries';
@@ -44,7 +44,7 @@ export function ConnectCard({ path, model = MODEL_PLACEHOLDER, description }: Co
 
   // Assume auth until status says otherwise: a placeholder key is easier to delete than a missing one is to diagnose.
   const authEnabled = status?.authEnabled ?? true;
-  const token = getToken() ?? undefined;
+  const token = useToken() ?? undefined;
   const copyToken = authEnabled ? (token ?? TOKEN_PLACEHOLDER) : undefined;
   const maskedToken = isRevealed ? token : TOKEN_MASK;
   const displayToken = authEnabled ? (token ? maskedToken : TOKEN_PLACEHOLDER) : undefined;
