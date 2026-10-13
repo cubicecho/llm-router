@@ -4,16 +4,15 @@ import { ActionButton } from '@/components/action-button';
 import { CardLayout } from '@/components/card-layout';
 import { ConfirmButton } from '@/components/confirm-button';
 import { DescriptionList, PropertyRow } from '@/components/description-list';
+import { EnabledSetting } from '@/components/domain/enabled/enabled-setting';
 import { ModelsCard } from '@/components/domain/model/models-card';
 import { ProviderDialog } from '@/components/domain/provider/provider-dialog';
 import { UsageCard } from '@/components/domain/usage/usage-card';
 import { PageLayout } from '@/components/page-layout';
 import { QueryState } from '@/components/query-state';
-import { SettingRow } from '@/components/setting-row';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Pencil, RefreshCw, Trash2 } from '@/components/ui/icons';
-import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toast';
 import { providerLabel } from '@/lib/provider-label';
 import {
@@ -138,25 +137,19 @@ function ProviderDetailPage() {
                         </>
                       }
                     />
-                    <SettingRow
-                      title="Enabled"
+                    <EnabledSetting
                       description="A disabled provider's models are served nowhere; its settings are kept."
-                      actionSlot={({ titleId }) => (
-                        <Switch
-                          checked={provider.enabled}
-                          disabled={update.isPending}
-                          aria-labelledby={titleId}
-                          onCheckedChange={(enabled) =>
-                            update.mutate(
-                              { name, enabled },
-                              {
-                                onSuccess: () => toast(`${enabled ? 'Enabled' : 'Disabled'} ${label}`, 'positive'),
-                                onError: (error) => toast(apiErrorMessage(error)),
-                              },
-                            )
-                          }
-                        />
-                      )}
+                      enabled={provider.enabled}
+                      saving={update.isPending}
+                      onChange={(enabled) =>
+                        update.mutate(
+                          { name, enabled },
+                          {
+                            onSuccess: () => toast(`${enabled ? 'Enabled' : 'Disabled'} ${label}`, 'positive'),
+                            onError: (error) => toast(apiErrorMessage(error)),
+                          },
+                        )
+                      }
                     />
                   </>
                 }

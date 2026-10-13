@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ActionButton } from '@/components/action-button';
 import { CardLayout } from '@/components/card-layout';
 import { ConfirmButton } from '@/components/confirm-button';
+import { EnabledSetting } from '@/components/domain/enabled/enabled-setting';
 import { ConnectCard } from '@/components/domain/endpoint/connect-card';
 import { ModelsCard } from '@/components/domain/model/models-card';
 import { UsageCard } from '@/components/domain/usage/usage-card';
@@ -10,10 +11,8 @@ import { MembersCard } from '@/components/domain/workspace/members-card';
 import { WorkspaceDialog } from '@/components/domain/workspace/workspace-dialog';
 import { PageLayout } from '@/components/page-layout';
 import { QueryState } from '@/components/query-state';
-import { SettingRow } from '@/components/setting-row';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Pencil, Trash2 } from '@/components/ui/icons';
-import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toast';
 import { useDeleteWorkspace, useUpdateWorkspace, useWorkspace, useWorkspaceModels } from '@/lib/queries';
 import { apiErrorMessage } from '@/lib/toast';
@@ -92,26 +91,19 @@ function WorkspaceDetailPage() {
                   </span>
                 }
                 contentSlot={
-                  <SettingRow
-                    title="Enabled"
+                  <EnabledSetting
                     description="A disabled workspace's endpoint answers 404; its providers are not affected."
-                    actionSlot={({ titleId }) => (
-                      <Switch
-                        checked={workspace.enabled}
-                        disabled={update.isPending}
-                        aria-labelledby={titleId}
-                        onCheckedChange={(enabled) =>
-                          update.mutate(
-                            { slug, enabled },
-                            {
-                              onSuccess: () =>
-                                toast(`${enabled ? 'Enabled' : 'Disabled'} ${workspace.name}`, 'positive'),
-                              onError: (error) => toast(apiErrorMessage(error)),
-                            },
-                          )
-                        }
-                      />
-                    )}
+                    enabled={workspace.enabled}
+                    saving={update.isPending}
+                    onChange={(enabled) =>
+                      update.mutate(
+                        { slug, enabled },
+                        {
+                          onSuccess: () => toast(`${enabled ? 'Enabled' : 'Disabled'} ${workspace.name}`, 'positive'),
+                          onError: (error) => toast(apiErrorMessage(error)),
+                        },
+                      )
+                    }
                   />
                 }
               />
