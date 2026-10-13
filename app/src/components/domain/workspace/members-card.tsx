@@ -99,6 +99,8 @@ export function MembersCard({ workspace }: { workspace: WorkspaceStatus }) {
                     )}
                     <Switch
                       checked={isMember}
+                      // Each save sends every member: a second one sent before the first lands would undo it.
+                      disabled={update.isPending}
                       onCheckedChange={(isOn) => setMember(provider, isOn)}
                       aria-label={`Serve ${label}`}
                     />

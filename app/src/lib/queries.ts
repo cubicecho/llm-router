@@ -225,15 +225,20 @@ export function useCreateWorkspace() {
 /**
  * Changes a workspace.
  *
- * @returns The mutation; takes the workspace's `slug` plus the fields to change, yields the workspace, and
- * invalidates everything a workspace change makes stale.
+ * @returns The mutation; takes the workspace's `slug` plus the fields to change, yields the workspace, keeps it as
+ * that workspace's query data, and invalidates everything a workspace change makes stale.
  */
 export function useUpdateWorkspace() {
   const invalidate = useInvalidate();
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ slug, ...body }: UpdateWorkspaceRequest & { slug: string }) => api.updateWorkspace(slug, body),
-    // A rename moves the workspace's counts to its new slug.
-    onSuccess: () => invalidate(...WORKSPACE_CHANGE_KEYS, queryKeys.usage),
+    onSuccess: (saved) => {
+      // Held at once, not after the refetch: the next change is built on the workspace on screen.
+      queryClient.setQueryData(queryKeys.workspace(saved.slug), saved);
+      // A rename moves the workspace's counts to its new slug.
+      invalidate(...WORKSPACE_CHANGE_KEYS, queryKeys.usage);
+    },
   });
 }
 
