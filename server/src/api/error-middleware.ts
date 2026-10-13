@@ -1,10 +1,14 @@
 import { type ApiError, ErrorCode } from '@llm-router/shared';
 import type { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
-import { badInput, exposedClientError, HttpError, internal, sendError } from '../core/errors.ts';
-
-/** What a 500 says. The cause goes to the log, never to the caller: it can name files on the host. */
-const INTERNAL_ERROR_MESSAGE = 'Internal server error';
+import {
+  badInput,
+  exposedClientError,
+  HttpError,
+  INTERNAL_ERROR_MESSAGE,
+  internal,
+  sendError,
+} from '../core/errors.ts';
 
 /**
  * Renders every thrown error as the JSON envelope { error, code, detail? }.

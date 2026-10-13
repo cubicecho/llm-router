@@ -19,6 +19,9 @@ import { ConfigCollection } from './collection.ts';
 import { effectiveAuth } from './effective-auth.ts';
 import { parseConfigFile } from './parse-file.ts';
 
+/** The name of the settings file in the config directory. */
+const SETTINGS_FILE_NAME = 'settings.json';
+
 /** Everything the config files hold, as last loaded. */
 export interface ConfigState {
   settings: SettingsFile;
@@ -38,6 +41,8 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
   readonly dataDir: string;
   /** `<dataDir>/config`. */
   readonly configDir: string;
+  /** `<configDir>/settings.json`. */
+  readonly settingsFile: string;
   /** `<configDir>/providers`, one file per provider. */
   readonly providersDir: string;
   /** `<configDir>/workspaces`, one file per workspace. */
@@ -58,6 +63,7 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
     super();
     this.dataDir = dataDir;
     this.configDir = path.join(dataDir, 'config');
+    this.settingsFile = path.join(this.configDir, SETTINGS_FILE_NAME);
     this.providersDir = path.join(this.configDir, 'providers');
     this.workspacesDir = path.join(this.configDir, 'workspaces');
     this.providers = new ConfigCollection({
@@ -176,7 +182,7 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
    */
   async updateSettings(patch: Partial<SettingsFile>): Promise<SettingsFile> {
     const next = settingsFileSchema.parse({ ...this.settings, ...patch });
-    await writeJsonAtomic(path.join(this.configDir, 'settings.json'), next);
+    await writeJsonAtomic(this.settingsFile, next);
     this.settings = next;
     return next;
   }
@@ -255,7 +261,7 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
    * holds one.
    */
   private async loadSettings(): Promise<SettingsFile> {
-    const file = path.join(this.configDir, 'settings.json');
+    const file = this.settingsFile;
     const isStored = existsSync(file);
     const stored = isStored
       ? parseConfigFile(file, await readFile(file, 'utf8'), settingsFileSchema.parse.bind(settingsFileSchema))

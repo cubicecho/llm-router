@@ -1,4 +1,3 @@
-import path from 'node:path';
 import {
   authDisabledByEnv,
   dataDir as envDataDir,
@@ -46,7 +45,7 @@ async function main(): Promise<void> {
       console.log('[auth] bearer token from LLM_ROUTER_TOKEN, which overrides settings.json');
     } else {
       // The path, never the token: boot logs are kept and shipped, and the token is printed once, when it is generated.
-      console.log(`[auth] bearer token is authToken in ${path.join(dataDir, 'config/settings.json')}`);
+      console.log(`[auth] bearer token is authToken in ${store.settingsFile}`);
     }
   };
   const httpServer = host ? app.listen(port, host, onListen) : app.listen(port, onListen);

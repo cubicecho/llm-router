@@ -6,6 +6,12 @@ import { forbidden, type HttpError, sendError, unauthenticated } from '../core/e
 /** Writes a refusal in the envelope the path's callers expect. */
 export type ErrorResponder = (res: Response, error: HttpError) => void;
 
+/** The hash two tokens are reduced to before they are compared, so the comparison shows neither one's length. */
+const TOKEN_DIGEST = 'sha256';
+
+/** The host names of this machine, as `URL` reports them. */
+const LOOPBACK_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
+
 /**
  * Compares two tokens in constant time, without leaking their length (it compares sha256 digests).
  *
@@ -14,8 +20,8 @@ export type ErrorResponder = (res: Response, error: HttpError) => void;
  * @returns True when the tokens are identical.
  */
 export function tokensEqual(a: string, b: string): boolean {
-  const digestA = createHash('sha256').update(a).digest();
-  const digestB = createHash('sha256').update(b).digest();
+  const digestA = createHash(TOKEN_DIGEST).update(a).digest();
+  const digestB = createHash(TOKEN_DIGEST).update(b).digest();
   return timingSafeEqual(digestA, digestB);
 }
 
@@ -28,7 +34,7 @@ export function tokensEqual(a: string, b: string): boolean {
 export function isLoopbackOrigin(origin: string): boolean {
   try {
     const { hostname } = new URL(origin);
-    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]' || hostname === '::1';
+    return LOOPBACK_HOSTNAMES.has(hostname);
   } catch {
     return false;
   }

@@ -54,6 +54,9 @@ const factoryFor =
   (message, detail, options) =>
     new HttpError(code, message, detail, options);
 
+/** What a 500 says. The cause goes to the log, never to the caller: it can name files on the host. */
+export const INTERNAL_ERROR_MESSAGE = 'Internal server error';
+
 /** Builds a 400 for input the caller got wrong. */
 export const badInput = factoryFor(ErrorCode.BadUserInput);
 /** Builds a 401 for a missing or wrong credential. */

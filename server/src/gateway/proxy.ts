@@ -10,7 +10,7 @@ import type { ServedBy, UsageStore } from '../usage/store.ts';
 import { type EndpointScope, exposesModel, type ScopeMember } from './endpoint-scope.ts';
 import { splitNamespacedModel } from './naming.ts';
 import { ModelNotFoundError } from './openai-error.ts';
-import { providerHeaders } from './provider-headers.ts';
+import { JSON_CONTENT_TYPE, providerHeaders } from './provider-headers.ts';
 import { fetchWithin, type UpstreamFetch, type UpstreamResponse, upstreamUrl } from './upstream-fetch.ts';
 
 /**
@@ -203,8 +203,8 @@ async function askProvider(
     return await fetchWithin(call.fetch, target.url, {
       method: 'POST',
       headers: providerHeaders(provider, {
-        accept: req.get('accept') ?? 'application/json',
-        'content-type': 'application/json',
+        accept: req.get('accept') ?? JSON_CONTENT_TYPE,
+        'content-type': JSON_CONTENT_TYPE,
       }),
       body: JSON.stringify(target.body),
       signal,
