@@ -43,8 +43,9 @@ export function MemberModelsDialog({ open, onOpenChange, workspace, provider }: 
   const options = [...new Set([...listed, ...stored])].map((upstreamId) => ({ value: upstreamId, label: upstreamId }));
   const listingError = listingFailure(listing);
 
+  const defaultValues: { models: readonly string[] } = { models: stored };
   const form = useAppForm({
-    defaultValues: { models: stored as readonly string[] },
+    defaultValues,
     onSubmit: ({ value }) => {
       const models = value.models.length > 0 ? [...value.models] : undefined;
       return submit(async () => {

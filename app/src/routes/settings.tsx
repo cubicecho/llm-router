@@ -31,17 +31,28 @@ const CONFIG_TREE = `config/
 └── workspaces/
     └── <slug>.json      # one file per workspace`;
 
+/** What the settings form edits. */
+interface SettingsFormValues {
+  /** Whether the router asks for its token. */
+  authEnabled: boolean;
+  /** The response timeout in seconds; null while the field is empty. */
+  responseTimeoutSeconds: number | null;
+  /** The allowed browser origins, one per line. */
+  allowedOrigins: string;
+}
+
 /** The form over the settings the router can change while running. */
 function SettingsForm({ settings }: { settings: EditableSettings }) {
   const update = useUpdateSettings();
   const toastSuccess = useSuccessToast();
   const toastApiError = useApiErrorToast();
+  const defaultValues: SettingsFormValues = {
+    authEnabled: settings.authEnabled,
+    responseTimeoutSeconds: settings.responseTimeoutMs / MS_PER_SECOND,
+    allowedOrigins: settings.allowedOrigins.join('\n'),
+  };
   const form = useAppForm({
-    defaultValues: {
-      authEnabled: settings.authEnabled,
-      responseTimeoutSeconds: (settings.responseTimeoutMs / MS_PER_SECOND) as number | null,
-      allowedOrigins: settings.allowedOrigins.join('\n'),
-    },
+    defaultValues,
     onSubmit: async ({ value }) => {
       try {
         await update.mutateAsync({
