@@ -15,6 +15,7 @@ import { RefreshCw, Trash2 } from '@/components/ui/icons';
 import { ThemePicker } from '@/components/ui/theme-picker';
 import { useToast } from '@/components/ui/toast';
 import { formatCount, formatDuration } from '@/lib/format';
+import { nonBlankLines } from '@/lib/lines';
 import { useReloadConfig, useResetUsage, useRouterStatus, useSettings, useUpdateSettings } from '@/lib/queries';
 import { useApiErrorToast } from '@/lib/toast';
 
@@ -30,19 +31,6 @@ const CONFIG_TREE = `config/
 │   └── <name>.json      # one file per provider, API key included
 └── workspaces/
     └── <slug>.json      # one file per workspace`;
-
-/**
- * Reads the origins out of a textarea.
- *
- * @param text - One origin per line.
- * @returns The non-empty lines, trimmed.
- */
-function originsOf(text: string): string[] {
-  return text
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-}
 
 /** The form over the settings the router can change while running. */
 function SettingsForm({ settings }: { settings: EditableSettings }) {
@@ -60,7 +48,7 @@ function SettingsForm({ settings }: { settings: EditableSettings }) {
         await update.mutateAsync({
           authEnabled: value.authEnabled,
           responseTimeoutMs: Math.round((value.responseTimeoutSeconds ?? 0) * MS_PER_SECOND),
-          allowedOrigins: originsOf(value.allowedOrigins),
+          allowedOrigins: nonBlankLines(value.allowedOrigins),
         });
         toast('Settings saved', 'positive');
       } catch (error) {

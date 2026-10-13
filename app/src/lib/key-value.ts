@@ -1,3 +1,5 @@
+import { nonBlankLines } from './lines.ts';
+
 /**
  * Writes a record as editable text.
  *
@@ -38,8 +40,5 @@ export function linesToRecord(text: string): Record<string, string> {
  * @returns The non-blank lines that have no `:` or no name before it.
  */
 export function malformedLines(text: string): string[] {
-  return text
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0 && line.indexOf(':') < 1);
+  return nonBlankLines(text).filter((line) => line.indexOf(':') < 1);
 }
