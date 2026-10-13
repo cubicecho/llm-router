@@ -256,25 +256,23 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
    */
   private async loadSettings(): Promise<SettingsFile> {
     const file = path.join(this.configDir, 'settings.json');
-    let settings: SettingsFile;
-    let dirty = false;
-    if (existsSync(file)) {
-      settings = parseConfigFile(file, await readFile(file, 'utf8'), settingsFileSchema.parse.bind(settingsFileSchema));
-    } else {
-      settings = settingsFileSchema.parse({});
-      dirty = true;
-    }
-    const auth = effectiveAuth(settings);
+    const isStored = existsSync(file);
+    const stored = isStored
+      ? parseConfigFile(file, await readFile(file, 'utf8'), settingsFileSchema.parse.bind(settingsFileSchema))
+      : settingsFileSchema.parse({});
+    const auth = effectiveAuth(stored);
     // Auth is on and neither settings.json nor LLM_ROUTER_TOKEN holds a token.
-    if (auth.enabled && !auth.token) {
-      settings.authToken = randomBytes(CONFIG_DEFAULTS.authTokenBytes).toString('hex');
-      dirty = true;
-      // The one time the token is printed: first run, when nobody has seen it yet.
-      console.log(`[auth] generated a bearer token and saved it to ${file}:\n  ${settings.authToken}`);
+    const needsToken = auth.enabled && (auth.token ?? '') === '';
+    if (needsToken === false) {
+      if (isStored === false) {
+        await writeJsonAtomic(file, stored);
+      }
+      return stored;
     }
-    if (dirty) {
-      await writeJsonAtomic(file, settings);
-    }
+    const settings = { ...stored, authToken: randomBytes(CONFIG_DEFAULTS.authTokenBytes).toString('hex') };
+    // The one time the token is printed: first run, when nobody has seen it yet.
+    console.log(`[auth] generated a bearer token and saved it to ${file}:\n  ${settings.authToken}`);
+    await writeJsonAtomic(file, settings);
     return settings;
   }
 }
