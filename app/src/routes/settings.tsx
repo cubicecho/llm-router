@@ -4,7 +4,7 @@ import { NumberField, SwitchField, TextareaField, useAppForm } from '@/component
 import { CardLayout } from '@/components/card-layout';
 import { ConfirmButton } from '@/components/confirm-button';
 import { DescriptionList, PropertyRow } from '@/components/description-list';
-import { PageBody } from '@/components/layouts/page-body';
+import { PAGE_BODY_CLASS } from '@/components/layouts/page-body';
 import { PageLayout } from '@/components/page-layout';
 import { QueryError, QueryState } from '@/components/query-state';
 import { Badge } from '@/components/ui/badge';
@@ -139,124 +139,121 @@ function SettingsPage() {
       title="Settings"
       description="Router status and configuration."
       width="prose"
+      contentClassName={PAGE_BODY_CLASS}
       contentSlot={
-        <PageBody
-          contentSlot={
-            <>
-              <CardLayout
-                level={2}
-                title="Router"
-                loading={status.isPending}
-                contentSlot={
-                  status.error ? (
-                    <QueryError error={status.error} onRetry={() => status.refetch()} what="status" />
-                  ) : (
-                    data && (
-                      <DescriptionList
-                        contentSlot={
-                          <>
-                            <PropertyRow label="Version" value={data.version} />
-                            <PropertyRow label="Uptime" value={formatDuration(data.uptimeSeconds)} />
-                            <PropertyRow label="Providers" value={String(data.providerCount)} />
-                            <PropertyRow label="Workspaces" value={String(data.workspaceCount)} />
-                            <PropertyRow
-                              label="Auth"
-                              value={
-                                data.authEnabled ? (
-                                  <Badge variant="positive">enabled</Badge>
-                                ) : (
-                                  <Badge variant="warning">disabled</Badge>
-                                )
-                              }
-                              hint={
-                                <>
-                                  The bearer token is set with the <Code>LLM_ROUTER_TOKEN</Code> environment variable or
-                                  in <Code>settings.json</Code>. It protects <Code>/api</Code> and every{' '}
-                                  <Code>/v1</Code>, and is what a client sends as its OpenAI API key.
-                                </>
-                              }
-                            />
-                          </>
-                        }
-                      />
-                    )
-                  )
-                }
-              />
+        <>
+          <CardLayout
+            level={2}
+            title="Router"
+            loading={status.isPending}
+            contentSlot={
+              status.error ? (
+                <QueryError error={status.error} onRetry={() => status.refetch()} what="status" />
+              ) : (
+                data && (
+                  <DescriptionList
+                    contentSlot={
+                      <>
+                        <PropertyRow label="Version" value={data.version} />
+                        <PropertyRow label="Uptime" value={formatDuration(data.uptimeSeconds)} />
+                        <PropertyRow label="Providers" value={String(data.providerCount)} />
+                        <PropertyRow label="Workspaces" value={String(data.workspaceCount)} />
+                        <PropertyRow
+                          label="Auth"
+                          value={
+                            data.authEnabled ? (
+                              <Badge variant="positive">enabled</Badge>
+                            ) : (
+                              <Badge variant="warning">disabled</Badge>
+                            )
+                          }
+                          hint={
+                            <>
+                              The bearer token is set with the <Code>LLM_ROUTER_TOKEN</Code> environment variable or in{' '}
+                              <Code>settings.json</Code>. It protects <Code>/api</Code> and every <Code>/v1</Code>, and
+                              is what a client sends as its OpenAI API key.
+                            </>
+                          }
+                        />
+                      </>
+                    }
+                  />
+                )
+              )
+            }
+          />
 
-              <CardLayout
-                level={2}
-                title="Configuration"
-                contentSlot={
-                  <>
-                    <QueryState query={settings} what="settings" count={settings.data ? 1 : 0} rows={3} />
-                    {settings.data && <SettingsForm key={JSON.stringify(settings.data)} settings={settings.data} />}
-                  </>
-                }
-              />
+          <CardLayout
+            level={2}
+            title="Configuration"
+            contentSlot={
+              <>
+                <QueryState query={settings} what="settings" count={settings.data ? 1 : 0} rows={3} />
+                {settings.data && <SettingsForm key={JSON.stringify(settings.data)} settings={settings.data} />}
+              </>
+            }
+          />
 
-              <CardLayout
-                level={2}
-                title="Configuration files"
-                description={
-                  <>
-                    All configuration lives in flat, hand-editable JSON files under <Code>DATA_DIR/config</Code>:
-                  </>
-                }
-                contentClassName="flex flex-col gap-4"
-                contentSlot={
-                  <>
-                    <CodeBlock content={CONFIG_TREE} />
-                    <p className="text-foreground/60 text-sm">
-                      The files are watched, so a hand edit is picked up by itself. A reload re-reads everything from
-                      disk at once and forgets the cached model lists.
-                    </p>
-                    <div>
-                      <Button
-                        variant="outline"
-                        loading={reload.isPending}
-                        loadingLabel="Reloading…"
-                        onClick={handleReload}
-                        iconSlot={<RefreshCw />}
-                        content="Reload config"
-                      />
-                    </div>
-                  </>
-                }
-              />
+          <CardLayout
+            level={2}
+            title="Configuration files"
+            description={
+              <>
+                All configuration lives in flat, hand-editable JSON files under <Code>DATA_DIR/config</Code>:
+              </>
+            }
+            contentClassName="flex flex-col gap-4"
+            contentSlot={
+              <>
+                <CodeBlock content={CONFIG_TREE} />
+                <p className="text-foreground/60 text-sm">
+                  The files are watched, so a hand edit is picked up by itself. A reload re-reads everything from disk
+                  at once and forgets the cached model lists.
+                </p>
+                <div>
+                  <Button
+                    variant="outline"
+                    loading={reload.isPending}
+                    loadingLabel="Reloading…"
+                    onClick={handleReload}
+                    iconSlot={<RefreshCw />}
+                    content="Reload config"
+                  />
+                </div>
+              </>
+            }
+          />
 
-              <CardLayout
-                level={2}
-                title="Usage"
-                description={
-                  <>
-                    Request and token counts are kept in <Code>DATA_DIR/usage.json</Code>, per provider, model,
-                    workspace and day.
-                  </>
-                }
-                contentSlot={
-                  <div>
-                    <ConfirmButton
-                      variant="outline"
-                      label="Reset usage"
-                      tooltip={false}
-                      loading={resetUsage.isPending}
-                      loadingLabel="Resetting…"
-                      title="Reset the usage counts?"
-                      description="Every request and token count is set back to zero, for all providers, workspaces and days. This cannot be undone."
-                      confirmLabel="Reset usage"
-                      onConfirm={handleResetUsage}
-                      iconSlot={<Trash2 className="text-negative" />}
-                      content="Reset usage"
-                    />
-                  </div>
-                }
-              />
+          <CardLayout
+            level={2}
+            title="Usage"
+            description={
+              <>
+                Request and token counts are kept in <Code>DATA_DIR/usage.json</Code>, per provider, model, workspace
+                and day.
+              </>
+            }
+            contentSlot={
+              <div>
+                <ConfirmButton
+                  variant="outline"
+                  label="Reset usage"
+                  tooltip={false}
+                  loading={resetUsage.isPending}
+                  loadingLabel="Resetting…"
+                  title="Reset the usage counts?"
+                  description="Every request and token count is set back to zero, for all providers, workspaces and days. This cannot be undone."
+                  confirmLabel="Reset usage"
+                  onConfirm={handleResetUsage}
+                  iconSlot={<Trash2 className="text-negative" />}
+                  content="Reset usage"
+                />
+              </div>
+            }
+          />
 
-              <CardLayout level={2} title="Appearance" contentSlot={<ThemePicker variant="compact" />} />
-            </>
-          }
-        />
+          <CardLayout level={2} title="Appearance" contentSlot={<ThemePicker variant="compact" />} />
+        </>
       }
     />
   );

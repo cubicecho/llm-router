@@ -9,7 +9,7 @@ import { ConnectCard } from '@/components/domain/endpoint/connect-card';
 import { ProviderDialog } from '@/components/domain/provider/provider-dialog';
 import { ProviderModelCount } from '@/components/domain/provider/provider-model-count';
 import { ProviderUsageText } from '@/components/domain/provider/provider-usage-text';
-import { PageBody } from '@/components/layouts/page-body';
+import { PAGE_BODY_CLASS } from '@/components/layouts/page-body';
 import { RowList, RowListItem } from '@/components/layouts/row-list';
 import { ListItem } from '@/components/list-item';
 import { EmptyState } from '@/components/page';
@@ -44,101 +44,96 @@ function ProvidersPage() {
       title="Providers"
       description="The OpenAI-compatible servers this router forwards to. Each one's models are served as <provider>/<model>."
       actionSlot={<Button variant="info" onClick={openCreate} iconSlot={<Plus />} content="Add provider" />}
+      contentClassName={PAGE_BODY_CLASS}
       contentSlot={
-        <PageBody
-          contentSlot={
-            <>
-              <QueryState
-                query={providers}
-                what="providers"
-                count={data?.length ?? 0}
-                emptySlot={
-                  <EmptyState
-                    icon={ServerIcon}
-                    title="No providers yet"
-                    description="Add an OpenAI-compatible server, such as Ollama, llama.cpp, OpenRouter or OpenAI, to serve its models."
-                    actionSlot={
-                      <Button variant="info" onClick={openCreate} iconSlot={<Plus />} content="Add provider" />
-                    }
-                  />
-                }
+        <>
+          <QueryState
+            query={providers}
+            what="providers"
+            count={data?.length ?? 0}
+            emptySlot={
+              <EmptyState
+                icon={ServerIcon}
+                title="No providers yet"
+                description="Add an OpenAI-compatible server, such as Ollama, llama.cpp, OpenRouter or OpenAI, to serve its models."
+                actionSlot={<Button variant="info" onClick={openCreate} iconSlot={<Plus />} content="Add provider" />}
               />
+            }
+          />
 
-              {hasProviders && (
-                <CardLayout
-                  level={2}
-                  title="All providers"
-                  contentSlot={
-                    <RowList
-                      contentSlot={data.map((provider) => {
-                        const label = providerLabel(provider);
-                        return (
-                          <RowListItem
-                            key={provider.name}
-                            contentSlot={
-                              <ListItem
-                                title={label}
-                                description={<span className="break-all font-mono text-xs">{provider.baseUrl}</span>}
-                                linkSlot={<Link to="/providers/$name" params={{ name: provider.name }} />}
-                                meta={
-                                  <span className="flex flex-wrap items-center justify-end gap-1">
-                                    <ProviderUsageText name={provider.name} />
-                                    <ProviderModelCount provider={provider} />
-                                    {provider.apiKeySet && <Badge variant="outline">key set</Badge>}
-                                    <EnabledBadge enabled={provider.enabled} />
-                                  </span>
-                                }
-                                actionSlot={
-                                  <>
-                                    <ActionButton
-                                      variant="ghost"
-                                      size="icon-sm"
-                                      label={`Edit ${label}`}
-                                      onClick={() => dialog.openEdit(provider)}
-                                      iconSlot={<Pencil />}
-                                    />
-                                    <ConfirmButton
-                                      variant="ghost"
-                                      size="icon-sm"
-                                      label={`Delete ${label}`}
-                                      title={`Delete provider ${label}?`}
-                                      description={`Its models (${provider.name}/…) stop being served, and it is removed from every workspace. The server itself is not affected.`}
-                                      onConfirm={() =>
-                                        remove.mutate(provider.name, {
-                                          onSuccess: () => toastSuccess(`Deleted provider ${label}`),
-                                          onError: toastApiError,
-                                        })
-                                      }
-                                      iconSlot={<Trash2 className="text-negative" />}
-                                    />
-                                  </>
-                                }
-                              />
+          {hasProviders && (
+            <CardLayout
+              level={2}
+              title="All providers"
+              contentSlot={
+                <RowList
+                  contentSlot={data.map((provider) => {
+                    const label = providerLabel(provider);
+                    return (
+                      <RowListItem
+                        key={provider.name}
+                        contentSlot={
+                          <ListItem
+                            title={label}
+                            description={<span className="break-all font-mono text-xs">{provider.baseUrl}</span>}
+                            linkSlot={<Link to="/providers/$name" params={{ name: provider.name }} />}
+                            meta={
+                              <span className="flex flex-wrap items-center justify-end gap-1">
+                                <ProviderUsageText name={provider.name} />
+                                <ProviderModelCount provider={provider} />
+                                {provider.apiKeySet && <Badge variant="outline">key set</Badge>}
+                                <EnabledBadge enabled={provider.enabled} />
+                              </span>
+                            }
+                            actionSlot={
+                              <>
+                                <ActionButton
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  label={`Edit ${label}`}
+                                  onClick={() => dialog.openEdit(provider)}
+                                  iconSlot={<Pencil />}
+                                />
+                                <ConfirmButton
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  label={`Delete ${label}`}
+                                  title={`Delete provider ${label}?`}
+                                  description={`Its models (${provider.name}/…) stop being served, and it is removed from every workspace. The server itself is not affected.`}
+                                  onConfirm={() =>
+                                    remove.mutate(provider.name, {
+                                      onSuccess: () => toastSuccess(`Deleted provider ${label}`),
+                                      onError: toastApiError,
+                                    })
+                                  }
+                                  iconSlot={<Trash2 className="text-negative" />}
+                                />
+                              </>
                             }
                           />
-                        );
-                      })}
-                    />
-                  }
+                        }
+                      />
+                    );
+                  })}
                 />
-              )}
+              }
+            />
+          )}
 
-              <ConnectCard
-                path={GLOBAL_ENDPOINT_PATH}
-                description="The global endpoint serves every enabled provider. A workspace serves a chosen subset at its own URL."
-              />
+          <ConnectCard
+            path={GLOBAL_ENDPOINT_PATH}
+            description="The global endpoint serves every enabled provider. A workspace serves a chosen subset at its own URL."
+          />
 
-              {dialog.isOpen && (
-                <ProviderDialog
-                  key={dialog.entity?.name ?? NEW_DIALOG_KEY}
-                  open
-                  onOpenChange={dialog.onOpenChange}
-                  provider={dialog.entity}
-                />
-              )}
-            </>
-          }
-        />
+          {dialog.isOpen && (
+            <ProviderDialog
+              key={dialog.entity?.name ?? NEW_DIALOG_KEY}
+              open
+              onOpenChange={dialog.onOpenChange}
+              provider={dialog.entity}
+            />
+          )}
+        </>
       }
     />
   );
