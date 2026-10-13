@@ -22,6 +22,9 @@ import {
 import * as api from './api.ts';
 import { POLLING_DEFAULTS } from './defaults.ts';
 
+/** The last segment of a workspace's model-list key, which tells those queries from the workspace's own. */
+const WORKSPACE_MODELS_SEGMENT = 'models';
+
 /** Every query key the app uses; a key that starts with another is invalidated along with it. */
 export const queryKeys = {
   status: ['status'] as const,
@@ -31,7 +34,7 @@ export const queryKeys = {
   providerModels: (name: string) => ['providers', name, 'models'] as const,
   workspaces: ['workspaces'] as const,
   workspace: (slug: string) => ['workspaces', slug] as const,
-  workspaceModels: (slug: string) => ['workspaces', slug, 'models'] as const,
+  workspaceModels: (slug: string) => ['workspaces', slug, WORKSPACE_MODELS_SEGMENT] as const,
   usage: ['usage'] as const,
 };
 
@@ -216,14 +219,20 @@ export function useDeleteProvider(): Mutation<void, string> {
 /**
  * Asks a provider for its models again, past the router's cached listing.
  *
- * @returns The mutation; takes the provider's name, yields the fresh listing, and invalidates that provider's
- * models and every workspace's.
+ * @returns The mutation; takes the provider's name, yields the fresh listing, keeps it as that provider's models
+ * query data, and invalidates every workspace's model list, which is built from it.
  */
 export function useRefreshProviderModels(): Mutation<ModelsResponse, string> {
-  const invalidate = useInvalidate();
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (name: string) => api.getProviderModels(name, { refresh: true }),
-    onSuccess: (_models, name) => invalidate(queryKeys.providerModels(name), queryKeys.workspaces),
+    onSuccess: (models, name) => {
+      queryClient.setQueryData(queryKeys.providerModels(name), models);
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.workspaces,
+        predicate: (query) => query.queryKey.at(-1) === WORKSPACE_MODELS_SEGMENT,
+      });
+    },
   });
 }
 
