@@ -1,4 +1,4 @@
-import { slugify, type WorkspaceStatus } from '@llm-router/shared';
+import { slugify, type WorkspaceStatus, workspaceEndpointPath } from '@llm-router/shared';
 import { useStore } from '@tanstack/react-form';
 import { useState } from 'react';
 import { InputField, SwitchField, useAppForm } from '@/components/app-form';
@@ -100,7 +100,7 @@ export function WorkspaceDialog({ open, onOpenChange, workspace, onSaved }: Work
             descriptionClassName="font-mono"
             description={
               <>
-                {isSlugValid ? `/w/${slug}/v1` : 'Enter a name to generate the URL'}
+                {isSlugValid ? workspaceEndpointPath(slug) : 'Enter a name to generate the URL'}
                 {isMoved && ' (renaming moves the URL)'}
               </>
             }

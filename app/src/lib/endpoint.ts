@@ -1,6 +1,3 @@
-/** Path of the OpenAI base URL that serves every enabled provider. */
-export const GLOBAL_ENDPOINT_PATH = '/v1';
-
 /**
  * Makes an endpoint path absolute on this router, as a client needs it.
  *

@@ -1,4 +1,4 @@
-import type { ProviderStatus } from '@llm-router/shared';
+import { GLOBAL_ENDPOINT_PATH, type ProviderStatus } from '@llm-router/shared';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { ServerIcon } from 'lucide-react';
 import { useState } from 'react';
@@ -17,7 +17,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Pencil, Plus, Trash2 } from '@/components/ui/icons';
 import { useToast } from '@/components/ui/toast';
-import { GLOBAL_ENDPOINT_PATH } from '@/lib/endpoint';
 import { providerLabel } from '@/lib/provider-label';
 import { useDeleteProvider, useProviders } from '@/lib/queries';
 import { apiErrorMessage } from '@/lib/toast';

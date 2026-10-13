@@ -7,6 +7,7 @@ import {
   type WorkspaceConfig,
   type WorkspaceStatus,
   workspaceConfigSchema,
+  workspaceEndpointPath,
   workspaceSlugSchema,
 } from '@llm-router/shared';
 import { Router } from 'express';
@@ -15,16 +16,6 @@ import { workspaceScope } from '../../gateway/endpoint-scope.ts';
 import { listScopeModels } from '../../gateway/models.ts';
 import type { ApiDeps } from '../deps.ts';
 import { keptOrCleared } from './kept-or-cleared.ts';
-
-/**
- * Names the path of a workspace's OpenAI base URL.
- *
- * @param slug - The workspace's slug.
- * @returns `/w/<slug>/v1`.
- */
-export function workspacePath(slug: string): string {
-  return `/w/${slug}/v1`;
-}
 
 /**
  * Builds workspace CRUD and each workspace's merged model listing, mounted at /api/workspaces.
@@ -39,7 +30,7 @@ export function createWorkspaceRoutes({ store, catalog, usage }: ApiDeps): Route
 
   const toWorkspaceStatus = (workspace: WorkspaceConfig): WorkspaceStatus => ({
     ...workspace,
-    path: workspacePath(workspace.slug),
+    path: workspaceEndpointPath(workspace.slug),
   });
 
   const requireWorkspace = (slug: string): WorkspaceConfig => {
