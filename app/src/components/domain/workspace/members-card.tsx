@@ -1,6 +1,5 @@
 import type { ProviderStatus, WorkspaceStatus } from '@llm-router/shared';
 import { Link } from '@tanstack/react-router';
-import { useState } from 'react';
 import { CardLayout } from '@/components/card-layout';
 import { MemberModelsDialog } from '@/components/domain/workspace/member-models-dialog';
 import { EmptyState } from '@/components/page';
@@ -10,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toast';
+import { useEntityDialog } from '@/lib/entity-dialog';
 import { formatCount } from '@/lib/format';
 import { providerLabel } from '@/lib/provider-label';
 import { useProviders, useUpdateWorkspace } from '@/lib/queries';
@@ -41,7 +41,7 @@ export function MembersCard({ workspace }: { workspace: WorkspaceStatus }) {
   const providers = useProviders();
   const update = useUpdateWorkspace();
   const toast = useToast();
-  const [editing, setEditing] = useState<ProviderStatus>();
+  const modelsDialog = useEntityDialog<ProviderStatus>();
 
   const setMember = (provider: ProviderStatus, isOn: boolean) => {
     // A member switched off keeps its entry, and with it the models chosen for it.
@@ -92,7 +92,7 @@ export function MembersCard({ workspace }: { workspace: WorkspaceStatus }) {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setEditing(provider)}
+                        onClick={() => modelsDialog.openEdit(provider)}
                         content="Choose models"
                         aria-label={`Choose models of ${label}`}
                       />
@@ -109,13 +109,13 @@ export function MembersCard({ workspace }: { workspace: WorkspaceStatus }) {
               />
             );
           })}
-          {editing && (
+          {modelsDialog.entity && (
             <MemberModelsDialog
-              key={editing.name}
+              key={modelsDialog.entity.name}
               open
-              onOpenChange={(open) => open === false && setEditing(undefined)}
+              onOpenChange={modelsDialog.onOpenChange}
               workspace={workspace}
-              provider={editing}
+              provider={modelsDialog.entity}
             />
           )}
         </>

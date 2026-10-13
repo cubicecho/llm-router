@@ -1,7 +1,6 @@
 import { GLOBAL_ENDPOINT_PATH, type ProviderStatus } from '@llm-router/shared';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { ServerIcon } from 'lucide-react';
-import { useState } from 'react';
 import { ActionButton } from '@/components/action-button';
 import { CardLayout } from '@/components/card-layout';
 import { ConfirmButton } from '@/components/confirm-button';
@@ -17,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Pencil, Plus, Trash2 } from '@/components/ui/icons';
 import { useToast } from '@/components/ui/toast';
+import { NEW_DIALOG_KEY, useEntityDialog } from '@/lib/entity-dialog';
 import { providerLabel } from '@/lib/provider-label';
 import { useDeleteProvider, useProviders } from '@/lib/queries';
 import { apiErrorMessage } from '@/lib/toast';
@@ -26,17 +26,14 @@ export const Route = createFileRoute('/')({
   component: ProvidersPage,
 });
 
-/** create → the Add button; edit → a specific provider; null → closed. */
-type DialogState = { mode: 'create' } | { mode: 'edit'; provider: ProviderStatus } | null;
-
 /** The Providers page: every provider with its base URL, token counts and live model count, the add/edit dialog, and how to call the global endpoint. */
 function ProvidersPage() {
   const providers = useProviders();
   const { data } = providers;
   const remove = useDeleteProvider();
   const toast = useToast();
-  const [dialog, setDialog] = useState<DialogState>(null);
-  const openCreate = () => setDialog({ mode: 'create' });
+  const dialog = useEntityDialog<ProviderStatus>();
+  const { openCreate } = dialog;
 
   return (
     <PageLayout
@@ -91,7 +88,7 @@ function ProvidersPage() {
                                 variant="ghost"
                                 size="icon-sm"
                                 label={`Edit ${label}`}
-                                onClick={() => setDialog({ mode: 'edit', provider })}
+                                onClick={() => dialog.openEdit(provider)}
                                 iconSlot={<Pencil />}
                               />
                               <ConfirmButton
@@ -124,12 +121,12 @@ function ProvidersPage() {
             description="The global endpoint serves every enabled provider. A workspace serves a chosen subset at its own URL."
           />
 
-          {dialog && (
+          {dialog.isOpen && (
             <ProviderDialog
-              key={dialog.mode === 'edit' ? dialog.provider.name : 'new'}
+              key={dialog.entity?.name ?? NEW_DIALOG_KEY}
               open
-              onOpenChange={(open) => open === false && setDialog(null)}
-              provider={dialog.mode === 'edit' ? dialog.provider : undefined}
+              onOpenChange={dialog.onOpenChange}
+              provider={dialog.entity}
             />
           )}
         </div>

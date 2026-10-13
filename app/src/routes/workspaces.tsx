@@ -1,7 +1,6 @@
 import type { WorkspaceStatus } from '@llm-router/shared';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { LayersIcon } from 'lucide-react';
-import { useState } from 'react';
 import { ActionButton } from '@/components/action-button';
 import { CardLayout } from '@/components/card-layout';
 import { ConfirmButton } from '@/components/confirm-button';
@@ -15,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Pencil, Plus, Trash2 } from '@/components/ui/icons';
 import { useToast } from '@/components/ui/toast';
+import { NEW_DIALOG_KEY, useEntityDialog } from '@/lib/entity-dialog';
 import { formatCount, joinStats } from '@/lib/format';
 import { useDeleteWorkspace, useWorkspaces } from '@/lib/queries';
 import { apiErrorMessage } from '@/lib/toast';
@@ -24,17 +24,14 @@ export const Route = createFileRoute('/workspaces')({
   component: WorkspacesPage,
 });
 
-/** create → the New button; edit → a specific workspace; null → closed. */
-type DialogState = { mode: 'create' } | { mode: 'edit'; workspace: WorkspaceStatus } | null;
-
 /** The Workspaces page: every workspace with its path, provider count and usage, and the create/edit dialog. */
 function WorkspacesPage() {
   const workspaces = useWorkspaces();
   const { data } = workspaces;
   const remove = useDeleteWorkspace();
   const toast = useToast();
-  const [dialog, setDialog] = useState<DialogState>(null);
-  const openCreate = () => setDialog({ mode: 'create' });
+  const dialog = useEntityDialog<WorkspaceStatus>();
+  const { openCreate } = dialog;
 
   return (
     <PageLayout
@@ -91,7 +88,7 @@ function WorkspacesPage() {
                                 variant="ghost"
                                 size="icon-sm"
                                 label={`Edit ${workspace.name}`}
-                                onClick={() => setDialog({ mode: 'edit', workspace })}
+                                onClick={() => dialog.openEdit(workspace)}
                                 iconSlot={<Pencil />}
                               />
                               <ConfirmButton
@@ -119,12 +116,12 @@ function WorkspacesPage() {
             />
           )}
 
-          {dialog && (
+          {dialog.isOpen && (
             <WorkspaceDialog
-              key={dialog.mode === 'edit' ? dialog.workspace.slug : 'new'}
+              key={dialog.entity?.slug ?? NEW_DIALOG_KEY}
               open
-              onOpenChange={(open) => open === false && setDialog(null)}
-              workspace={dialog.mode === 'edit' ? dialog.workspace : undefined}
+              onOpenChange={dialog.onOpenChange}
+              workspace={dialog.entity}
             />
           )}
         </div>
