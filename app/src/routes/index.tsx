@@ -3,9 +3,9 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { ServerIcon } from 'lucide-react';
 import { ActionButton } from '@/components/action-button';
 import { CardLayout } from '@/components/card-layout';
-import { ConfirmButton } from '@/components/confirm-button';
 import { EnabledBadge } from '@/components/domain/enabled/enabled-badge';
 import { ConnectCard } from '@/components/domain/endpoint/connect-card';
+import { DeleteProviderButton } from '@/components/domain/provider/delete-provider-button';
 import { ProviderDialog } from '@/components/domain/provider/provider-dialog';
 import { ProviderModelCount } from '@/components/domain/provider/provider-model-count';
 import { ProviderUsageText } from '@/components/domain/provider/provider-usage-text';
@@ -17,11 +17,10 @@ import { PageLayout } from '@/components/page-layout';
 import { QueryState } from '@/components/query-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Pencil, Plus, Trash2 } from '@/components/ui/icons';
+import { Pencil, Plus } from '@/components/ui/icons';
 import { NEW_DIALOG_KEY, useEntityDialog } from '@/lib/entity-dialog';
 import { providerLabel } from '@/lib/provider-label';
-import { useDeleteProvider, useProviders } from '@/lib/queries';
-import { useApiErrorToast, useSuccessToast } from '@/lib/toast';
+import { useProviders } from '@/lib/queries';
 
 /** The `/` route. */
 export const Route = createFileRoute('/')({
@@ -33,9 +32,6 @@ function ProvidersPage() {
   const providers = useProviders();
   const { data } = providers;
   const hasProviders = data !== undefined && data.length > 0;
-  const remove = useDeleteProvider();
-  const toastSuccess = useSuccessToast();
-  const toastApiError = useApiErrorToast();
   const dialog = useEntityDialog<ProviderStatus>();
   const { openCreate } = dialog;
 
@@ -94,20 +90,7 @@ function ProvidersPage() {
                                   onClick={() => dialog.openEdit(provider)}
                                   iconSlot={<Pencil />}
                                 />
-                                <ConfirmButton
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  label={`Delete ${label}`}
-                                  title={`Delete provider ${label}?`}
-                                  description={`Its models (${provider.name}/…) stop being served, and it is removed from every workspace. The server itself is not affected.`}
-                                  onConfirm={() =>
-                                    remove.mutate(provider.name, {
-                                      onSuccess: () => toastSuccess(`Deleted provider ${label}`),
-                                      onError: toastApiError,
-                                    })
-                                  }
-                                  iconSlot={<Trash2 className="text-negative" />}
-                                />
+                                <DeleteProviderButton provider={provider} />
                               </>
                             }
                           />

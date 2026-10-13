@@ -2,10 +2,10 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { ActionButton } from '@/components/action-button';
 import { CardLayout } from '@/components/card-layout';
-import { ConfirmButton } from '@/components/confirm-button';
 import { DescriptionList, PropertyRow } from '@/components/description-list';
 import { EnabledSetting } from '@/components/domain/enabled/enabled-setting';
 import { ModelsCard } from '@/components/domain/model/models-card';
+import { DeleteProviderButton } from '@/components/domain/provider/delete-provider-button';
 import { ProviderDialog } from '@/components/domain/provider/provider-dialog';
 import { UsageCard } from '@/components/domain/usage/usage-card';
 import { PAGE_BODY_CLASS } from '@/components/layouts/page-body';
@@ -13,15 +13,9 @@ import { PageLayout } from '@/components/page-layout';
 import { QueryState } from '@/components/query-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Pencil, RefreshCw, Trash2 } from '@/components/ui/icons';
+import { ArrowLeft, Pencil, RefreshCw } from '@/components/ui/icons';
 import { providerLabel } from '@/lib/provider-label';
-import {
-  useDeleteProvider,
-  useProvider,
-  useProviderModels,
-  useRefreshProviderModels,
-  useUpdateProvider,
-} from '@/lib/queries';
+import { useProvider, useProviderModels, useRefreshProviderModels, useUpdateProvider } from '@/lib/queries';
 import { useApiErrorToast, useSuccessToast } from '@/lib/toast';
 
 /** The `/providers/$name` route. */
@@ -37,23 +31,12 @@ function ProviderDetailPage() {
   const { data: provider } = query;
   const models = useProviderModels(name, { enabled: provider?.enabled === true });
   const update = useUpdateProvider();
-  const remove = useDeleteProvider();
   const refresh = useRefreshProviderModels();
   const toastSuccess = useSuccessToast();
   const toastApiError = useApiErrorToast();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const label = provider ? providerLabel(provider) : name;
   const headers = Object.entries(provider?.headers ?? {});
-
-  const handleDelete = () => {
-    remove.mutate(name, {
-      onSuccess: () => {
-        toastSuccess(`Deleted provider ${label}`);
-        navigate({ to: '/' });
-      },
-      onError: toastApiError,
-    });
-  };
 
   return (
     <PageLayout
@@ -88,18 +71,7 @@ function ProviderDetailPage() {
                       iconSlot={<Pencil />}
                       content="Edit"
                     />
-                    <ConfirmButton
-                      variant="outline"
-                      size="sm"
-                      label={`Delete ${label}`}
-                      tooltip={false}
-                      loading={remove.isPending}
-                      title={`Delete provider ${label}?`}
-                      description={`Its models (${provider.name}/…) stop being served, and it is removed from every workspace. The server itself is not affected.`}
-                      onConfirm={handleDelete}
-                      iconSlot={<Trash2 className="text-negative" />}
-                      content="Delete"
-                    />
+                    <DeleteProviderButton provider={provider} isLabelled onDeleted={() => navigate({ to: '/' })} />
                   </span>
                 }
                 contentClassName="gap-4"

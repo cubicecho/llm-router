@@ -2,19 +2,19 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { ActionButton } from '@/components/action-button';
 import { CardLayout } from '@/components/card-layout';
-import { ConfirmButton } from '@/components/confirm-button';
 import { EnabledSetting } from '@/components/domain/enabled/enabled-setting';
 import { ConnectCard } from '@/components/domain/endpoint/connect-card';
 import { ModelsCard } from '@/components/domain/model/models-card';
 import { UsageCard } from '@/components/domain/usage/usage-card';
+import { DeleteWorkspaceButton } from '@/components/domain/workspace/delete-workspace-button';
 import { MembersCard } from '@/components/domain/workspace/members-card';
 import { WorkspaceDialog } from '@/components/domain/workspace/workspace-dialog';
 import { PAGE_BODY_CLASS } from '@/components/layouts/page-body';
 import { PageLayout } from '@/components/page-layout';
 import { QueryState } from '@/components/query-state';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Pencil, Trash2 } from '@/components/ui/icons';
-import { useDeleteWorkspace, useUpdateWorkspace, useWorkspace, useWorkspaceModels } from '@/lib/queries';
+import { ArrowLeft, Pencil } from '@/components/ui/icons';
+import { useUpdateWorkspace, useWorkspace, useWorkspaceModels } from '@/lib/queries';
 import { useApiErrorToast, useSuccessToast } from '@/lib/toast';
 
 /** The `/workspaces/$slug` route. */
@@ -30,20 +30,9 @@ function WorkspaceDetailPage() {
   const { data: workspace } = query;
   const models = useWorkspaceModels(slug);
   const update = useUpdateWorkspace();
-  const remove = useDeleteWorkspace();
   const toastSuccess = useSuccessToast();
   const toastApiError = useApiErrorToast();
   const [isEditOpen, setIsEditOpen] = useState(false);
-
-  const handleDelete = () => {
-    remove.mutate(slug, {
-      onSuccess: () => {
-        toastSuccess(`Deleted workspace ${workspace?.name ?? slug}`);
-        navigate({ to: '/workspaces' });
-      },
-      onError: toastApiError,
-    });
-  };
 
   return (
     <PageLayout
@@ -78,17 +67,10 @@ function WorkspaceDetailPage() {
                       iconSlot={<Pencil />}
                       content="Edit"
                     />
-                    <ConfirmButton
-                      variant="outline"
-                      size="sm"
-                      label={`Delete ${workspace.name}`}
-                      tooltip={false}
-                      loading={remove.isPending}
-                      title={`Delete workspace ${workspace.name}?`}
-                      description={`The workspace's endpoint (${workspace.path}) stops responding. Its providers are not affected.`}
-                      onConfirm={handleDelete}
-                      iconSlot={<Trash2 className="text-negative" />}
-                      content="Delete"
+                    <DeleteWorkspaceButton
+                      workspace={workspace}
+                      isLabelled
+                      onDeleted={() => navigate({ to: '/workspaces' })}
                     />
                   </span>
                 }

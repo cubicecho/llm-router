@@ -3,8 +3,8 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { LayersIcon } from 'lucide-react';
 import { ActionButton } from '@/components/action-button';
 import { CardLayout } from '@/components/card-layout';
-import { ConfirmButton } from '@/components/confirm-button';
 import { EnabledBadge } from '@/components/domain/enabled/enabled-badge';
+import { DeleteWorkspaceButton } from '@/components/domain/workspace/delete-workspace-button';
 import { WorkspaceDialog } from '@/components/domain/workspace/workspace-dialog';
 import { WorkspaceUsageText } from '@/components/domain/workspace/workspace-usage-text';
 import { PAGE_BODY_CLASS } from '@/components/layouts/page-body';
@@ -14,11 +14,10 @@ import { EmptyState } from '@/components/page';
 import { PageLayout } from '@/components/page-layout';
 import { QueryState } from '@/components/query-state';
 import { Button } from '@/components/ui/button';
-import { Pencil, Plus, Trash2 } from '@/components/ui/icons';
+import { Pencil, Plus } from '@/components/ui/icons';
 import { NEW_DIALOG_KEY, useEntityDialog } from '@/lib/entity-dialog';
 import { formatCount, joinStats } from '@/lib/format';
-import { useDeleteWorkspace, useWorkspaces } from '@/lib/queries';
-import { useApiErrorToast, useSuccessToast } from '@/lib/toast';
+import { useWorkspaces } from '@/lib/queries';
 
 /** The `/workspaces` route. */
 export const Route = createFileRoute('/workspaces')({
@@ -30,9 +29,6 @@ function WorkspacesPage() {
   const workspaces = useWorkspaces();
   const { data } = workspaces;
   const hasWorkspaces = data !== undefined && data.length > 0;
-  const remove = useDeleteWorkspace();
-  const toastSuccess = useSuccessToast();
-  const toastApiError = useApiErrorToast();
   const dialog = useEntityDialog<WorkspaceStatus>();
   const { openCreate } = dialog;
 
@@ -93,20 +89,7 @@ function WorkspacesPage() {
                                   onClick={() => dialog.openEdit(workspace)}
                                   iconSlot={<Pencil />}
                                 />
-                                <ConfirmButton
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  label={`Delete ${workspace.name}`}
-                                  title={`Delete workspace ${workspace.name}?`}
-                                  description={`The workspace's endpoint (${workspace.path}) stops responding. Its providers are not affected.`}
-                                  onConfirm={() =>
-                                    remove.mutate(workspace.slug, {
-                                      onSuccess: () => toastSuccess(`Deleted workspace ${workspace.name}`),
-                                      onError: toastApiError,
-                                    })
-                                  }
-                                  iconSlot={<Trash2 className="text-negative" />}
-                                />
+                                <DeleteWorkspaceButton workspace={workspace} />
                               </>
                             }
                           />
