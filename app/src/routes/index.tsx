@@ -4,6 +4,7 @@ import { ServerIcon } from 'lucide-react';
 import { ActionButton } from '@/components/action-button';
 import { CardLayout } from '@/components/card-layout';
 import { ConfirmButton } from '@/components/confirm-button';
+import { EnabledBadge } from '@/components/domain/enabled/enabled-badge';
 import { ConnectCard } from '@/components/domain/endpoint/connect-card';
 import { ProviderDialog } from '@/components/domain/provider/provider-dialog';
 import { ProviderModelCount } from '@/components/domain/provider/provider-model-count';
@@ -75,11 +76,7 @@ function ProvidersPage() {
                               <ProviderUsageText name={provider.name} />
                               <ProviderModelCount provider={provider} />
                               {provider.apiKeySet && <Badge variant="outline">key set</Badge>}
-                              {provider.enabled ? (
-                                <Badge variant="positive">enabled</Badge>
-                              ) : (
-                                <Badge variant="secondary">disabled</Badge>
-                              )}
+                              <EnabledBadge enabled={provider.enabled} />
                             </span>
                           }
                           actionSlot={

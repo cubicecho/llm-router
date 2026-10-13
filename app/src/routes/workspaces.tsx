@@ -4,13 +4,13 @@ import { LayersIcon } from 'lucide-react';
 import { ActionButton } from '@/components/action-button';
 import { CardLayout } from '@/components/card-layout';
 import { ConfirmButton } from '@/components/confirm-button';
+import { EnabledBadge } from '@/components/domain/enabled/enabled-badge';
 import { WorkspaceDialog } from '@/components/domain/workspace/workspace-dialog';
 import { WorkspaceUsageText } from '@/components/domain/workspace/workspace-usage-text';
 import { ListItem } from '@/components/list-item';
 import { EmptyState } from '@/components/page';
 import { PageLayout } from '@/components/page-layout';
 import { QueryState } from '@/components/query-state';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Pencil, Plus, Trash2 } from '@/components/ui/icons';
 import { useToast } from '@/components/ui/toast';
@@ -75,11 +75,7 @@ function WorkspacesPage() {
                           meta={
                             <span className="flex flex-wrap items-center justify-end gap-1">
                               <WorkspaceUsageText slug={workspace.slug} />
-                              {workspace.enabled ? (
-                                <Badge variant="positive">enabled</Badge>
-                              ) : (
-                                <Badge variant="secondary">disabled</Badge>
-                              )}
+                              <EnabledBadge enabled={workspace.enabled} />
                             </span>
                           }
                           actionSlot={

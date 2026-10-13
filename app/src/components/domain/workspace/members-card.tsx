@@ -1,11 +1,11 @@
 import type { ProviderStatus, WorkspaceStatus } from '@llm-router/shared';
 import { Link } from '@tanstack/react-router';
 import { CardLayout } from '@/components/card-layout';
+import { EnabledBadge } from '@/components/domain/enabled/enabled-badge';
 import { MemberModelsDialog } from '@/components/domain/workspace/member-models-dialog';
 import { EmptyState } from '@/components/page';
 import { QueryState } from '@/components/query-state';
 import { SettingRow } from '@/components/setting-row';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toast';
@@ -82,7 +82,7 @@ export function MembersCard({ workspace }: { workspace: WorkspaceStatus }) {
                 title={
                   <span className="flex flex-wrap items-center gap-2">
                     {label}
-                    {provider.enabled === false && <Badge variant="secondary">disabled</Badge>}
+                    {provider.enabled === false && <EnabledBadge enabled={false} />}
                   </span>
                 }
                 description={memberSummary(provider, isMember, member?.models ?? [])}
