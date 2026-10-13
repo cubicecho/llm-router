@@ -41,8 +41,13 @@ interface SettingsFormValues {
   allowedOrigins: string;
 }
 
+interface SettingsFormProps {
+  /** The stored settings the form starts from. */
+  settings: EditableSettings;
+}
+
 /** The form over the settings the router can change while running. */
-function SettingsForm({ settings }: { settings: EditableSettings }) {
+function SettingsForm({ settings }: SettingsFormProps) {
   const update = useUpdateSettings();
   const toastSuccess = useSuccessToast();
   const toastApiError = useApiErrorToast();

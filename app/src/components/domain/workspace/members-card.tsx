@@ -32,11 +32,16 @@ function memberSummary(provider: ProviderStatus, isMember: boolean, allowed: str
   return allowed.length > 0 ? `${formatCount(allowed.length, 'model')} allowed` : 'Every model it lists';
 }
 
+interface MembersCardProps {
+  /** The workspace whose members the card edits. */
+  workspace: WorkspaceStatus;
+}
+
 /**
  * A workspace's members: every provider with a switch that puts it in the workspace, and the choice of which of its
  * models are served. A switch saves at once; the models are chosen in a dialog.
  */
-export function MembersCard({ workspace }: { workspace: WorkspaceStatus }) {
+export function MembersCard({ workspace }: MembersCardProps) {
   const providers = useProviders();
   const update = useUpdateWorkspace();
   const toastApiError = useApiErrorToast();
