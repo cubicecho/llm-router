@@ -4,6 +4,7 @@ import { RowList, RowListItem } from '@/components/layouts/row-list';
 import { ListItem } from '@/components/list-item';
 import { EmptyState } from '@/components/page';
 import { QueryState } from '@/components/query-state';
+import { Section } from '@/components/section';
 import { Button } from '@/components/ui/button';
 import { USAGE_VIEW_DEFAULTS } from '@/lib/defaults';
 import { formatCount } from '@/lib/format';
@@ -76,18 +77,21 @@ export function UsageCard({ scope }: UsageCardProps) {
                 }
               />
               {days.length > 0 && (
-                <>
-                  <h3 className="pt-2 font-medium text-sm">By day</h3>
-                  <RowList
-                    label="Usage by day"
-                    contentSlot={shownDays.map((day) => (
-                      <RowListItem
-                        key={day.day}
-                        contentSlot={<ListItem title={dayLabel(day.day)} meta={<UsageText usage={day} />} />}
-                      />
-                    ))}
-                  />
-                </>
+                <Section
+                  level={3}
+                  title="By day"
+                  contentSlot={
+                    <RowList
+                      label="Usage by day"
+                      contentSlot={shownDays.map((day) => (
+                        <RowListItem
+                          key={day.day}
+                          contentSlot={<ListItem title={dayLabel(day.day)} meta={<UsageText usage={day} />} />}
+                        />
+                      ))}
+                    />
+                  }
+                />
               )}
               {days.length > USAGE_VIEW_DEFAULTS.recentDays && (
                 <div>
