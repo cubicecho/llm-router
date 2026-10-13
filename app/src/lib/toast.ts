@@ -1,5 +1,6 @@
 import { useToast } from '@/components/ui/toast';
 import { ApiRequestError } from './api.ts';
+import { messageOf } from './error-message.ts';
 
 /** What a `CopyButton` whose clipboard write was refused says. */
 export const COPY_FAILED_MESSAGE = 'Failed to copy to clipboard';
@@ -14,7 +15,7 @@ export function apiErrorMessage(error: unknown): string {
   if (error instanceof ApiRequestError && error.detail) {
     return `${error.message}: ${error.detail}`;
   }
-  return error instanceof Error ? error.message : String(error);
+  return messageOf(error) ?? '';
 }
 
 /**
