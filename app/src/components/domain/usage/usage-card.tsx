@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { CardLayout } from '@/components/card-layout';
+import { RowList, RowListItem } from '@/components/layouts/row-list';
 import { ListItem } from '@/components/list-item';
 import { EmptyState } from '@/components/page';
 import { QueryState } from '@/components/query-state';
@@ -50,26 +51,42 @@ export function UsageCard({ scope }: UsageCardProps) {
           />
           {usage && (
             <>
-              <ul aria-label="Usage by model" className="flex flex-col divide-y divide-foreground/10">
-                <li className="py-1">
-                  <ListItem title="All models" titleClassName="font-medium" meta={<UsageText usage={usage.totals} />} />
-                </li>
-                {usage.models.map((model) => (
-                  <li key={model.id} className="py-1">
-                    <ListItem title={model.id} titleClassName="font-mono" meta={<UsageText usage={model} />} />
-                  </li>
-                ))}
-              </ul>
+              <RowList
+                label="Usage by model"
+                contentSlot={
+                  <>
+                    <RowListItem
+                      contentSlot={
+                        <ListItem
+                          title="All models"
+                          titleClassName="font-medium"
+                          meta={<UsageText usage={usage.totals} />}
+                        />
+                      }
+                    />
+                    {usage.models.map((model) => (
+                      <RowListItem
+                        key={model.id}
+                        contentSlot={
+                          <ListItem title={model.id} titleClassName="font-mono" meta={<UsageText usage={model} />} />
+                        }
+                      />
+                    ))}
+                  </>
+                }
+              />
               {days.length > 0 && (
                 <>
                   <h3 className="pt-2 font-medium text-sm">By day</h3>
-                  <ul aria-label="Usage by day" className="flex flex-col divide-y divide-foreground/10">
-                    {shownDays.map((day) => (
-                      <li key={day.day} className="py-1">
-                        <ListItem title={dayLabel(day.day)} meta={<UsageText usage={day} />} />
-                      </li>
+                  <RowList
+                    label="Usage by day"
+                    contentSlot={shownDays.map((day) => (
+                      <RowListItem
+                        key={day.day}
+                        contentSlot={<ListItem title={dayLabel(day.day)} meta={<UsageText usage={day} />} />}
+                      />
                     ))}
-                  </ul>
+                  />
                 </>
               )}
               {days.length > USAGE_VIEW_DEFAULTS.recentDays && (

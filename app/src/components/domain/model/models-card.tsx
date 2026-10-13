@@ -1,5 +1,6 @@
 import type { ModelsResponse } from '@llm-router/shared';
 import { CardLayout } from '@/components/card-layout';
+import { RowList, RowListItem } from '@/components/layouts/row-list';
 import { ListItem } from '@/components/list-item';
 import { EmptyState } from '@/components/page';
 import { QueryState } from '@/components/query-state';
@@ -58,24 +59,27 @@ export function ModelsCard({ query, title, description, actionSlot, emptyTitle }
           {models.length > 0 && (
             <>
               <p className="text-foreground/60 text-xs">{formatCount(models.length, 'model')}</p>
-              <ul className="flex flex-col divide-y divide-foreground/10">
-                {models.map((model) => (
-                  <li key={model.id} className="py-1">
-                    <ListItem
-                      title={model.id}
-                      titleClassName="font-mono"
-                      actionSlot={
-                        <CopyButton
-                          variant="ghost"
-                          value={model.id}
-                          label={`Copy ${model.id}`}
-                          onError={() => toast(COPY_FAILED_MESSAGE)}
-                        />
-                      }
-                    />
-                  </li>
+              <RowList
+                contentSlot={models.map((model) => (
+                  <RowListItem
+                    key={model.id}
+                    contentSlot={
+                      <ListItem
+                        title={model.id}
+                        titleClassName="font-mono"
+                        actionSlot={
+                          <CopyButton
+                            variant="ghost"
+                            value={model.id}
+                            label={`Copy ${model.id}`}
+                            onError={() => toast(COPY_FAILED_MESSAGE)}
+                          />
+                        }
+                      />
+                    }
+                  />
                 ))}
-              </ul>
+              />
             </>
           )}
         </>
