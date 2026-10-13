@@ -156,6 +156,47 @@ describe('proxyToProvider', () => {
     expect(usage.snapshot().providers).toMatchObject([{ provider: 'alpha', requests: 1 }]);
   });
 
+  it('logs a provider stream that breaks', async () => {
+    const broken = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.error(new Error('provider went away'));
+      },
+    });
+    const answer: UpstreamFetch = async () => new Response(broken);
+    await expect(request(proxyApp(answer)).post('/chat/completions').send(CHAT_BODY)).rejects.toThrow();
+    expect(console.warn).toHaveBeenCalledWith('[gateway] stream from provider "alpha" broke: provider went away');
+  });
+
+  it('logs nothing when the client leaves a stream', async () => {
+    const encoder = new TextEncoder();
+    // Ends the way a real fetch body does when its request is aborted.
+    const answer: UpstreamFetch = async (_url, upstreamRequest) =>
+      new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(encoder.encode('data: {"delta":"a"}\n\n'));
+            upstreamRequest.signal?.addEventListener('abort', () => controller.error(new Error('aborted')));
+          },
+        }),
+        { headers: { 'content-type': 'text/event-stream' } },
+      );
+    const server: Server = createServer(proxyApp(answer));
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as AddressInfo;
+    const client = new AbortController();
+    const response = await fetch(`http://127.0.0.1:${port}/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(CHAT_BODY),
+      signal: client.signal,
+    });
+    await response.body?.getReader().read();
+    client.abort();
+    await vi.waitFor(() => expect(usage.snapshot().providers).toMatchObject([{ provider: 'alpha', requests: 1 }]));
+    expect(console.warn).not.toHaveBeenCalled();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+
   it('abandons the provider request when the client goes away', async () => {
     let providerSignal: AbortSignal | undefined;
     const never: UpstreamFetch = (_url, upstreamRequest) => {
