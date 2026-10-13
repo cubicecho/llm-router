@@ -66,10 +66,8 @@ function AppFrame() {
     ? joinStats(formatCount(data.providerCount, 'provider'), formatCount(data.workspaceCount, 'workspace'))
     : undefined;
   // Providers owns "/" and the detail pages under /providers; every other place owns the paths under it.
-  const isActive = (to: string) =>
-    to === '/'
-      ? pathname === '/' || pathname.startsWith('/providers/')
-      : pathname === to || pathname.startsWith(`${to}/`);
+  const isOnProviders = pathname === '/' || pathname.startsWith('/providers/');
+  const isActive = (to: string) => (to === '/' ? isOnProviders : pathname === to || pathname.startsWith(`${to}/`));
 
   return (
     <AppLayout

@@ -49,9 +49,10 @@ export function ConnectCard({ path, model = MODEL_PLACEHOLDER, description }: Co
   // Assume auth until status says otherwise: a placeholder key is easier to delete than a missing one is to diagnose.
   const authEnabled = status?.authEnabled ?? true;
   const token = useToken() ?? undefined;
-  const copyToken = authEnabled ? (token ?? TOKEN_PLACEHOLDER) : undefined;
+  const hasToken = token !== undefined && token !== '';
+  const copyToken = authEnabled ? (hasToken ? token : TOKEN_PLACEHOLDER) : undefined;
   const maskedToken = isRevealed ? token : TOKEN_MASK;
-  const displayToken = authEnabled ? (token ? maskedToken : TOKEN_PLACEHOLDER) : undefined;
+  const displayToken = authEnabled ? (hasToken ? maskedToken : TOKEN_PLACEHOLDER) : undefined;
   const baseUrl = endpointUrl(path);
   const input = (snippetToken: string | undefined): SnippetInput => ({ baseUrl, model, token: snippetToken });
 
@@ -62,7 +63,7 @@ export function ConnectCard({ path, model = MODEL_PLACEHOLDER, description }: Co
       description={description}
       actionSlot={
         authEnabled &&
-        token !== undefined && (
+        hasToken && (
           <Button
             variant="outline"
             size="sm"
@@ -108,7 +109,7 @@ export function ConnectCard({ path, model = MODEL_PLACEHOLDER, description }: Co
           ))}
           {authEnabled && (
             <p className="text-foreground/60 text-xs">
-              Copied snippets include your bearer token{token ? '' : ' placeholder'}. Treat them as secrets.
+              Copied snippets include your bearer token{hasToken ? '' : ' placeholder'}. Treat them as secrets.
             </p>
           )}
         </>

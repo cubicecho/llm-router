@@ -21,7 +21,8 @@ const UNUSED_API_KEY = 'unused';
  */
 export function curlSnippet({ baseUrl, model, token }: SnippetInput): string {
   const lines = [`curl ${baseUrl}/chat/completions \\`, `  -H "Content-Type: application/json" \\`];
-  if (token) {
+  const hasToken = token !== undefined && token !== '';
+  if (hasToken) {
     lines.push(`  -H "Authorization: Bearer ${token}" \\`);
   }
   const body = JSON.stringify({ model, messages: [{ role: 'user', content: 'Hello' }] });

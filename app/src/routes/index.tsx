@@ -32,6 +32,7 @@ export const Route = createFileRoute('/')({
 function ProvidersPage() {
   const providers = useProviders();
   const { data } = providers;
+  const hasProviders = data !== undefined && data.length > 0;
   const remove = useDeleteProvider();
   const toastSuccess = useSuccessToast();
   const toastApiError = useApiErrorToast();
@@ -63,7 +64,7 @@ function ProvidersPage() {
                 }
               />
 
-              {data && data.length > 0 && (
+              {hasProviders && (
                 <CardLayout
                   level={2}
                   title="All providers"

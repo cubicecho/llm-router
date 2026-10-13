@@ -26,7 +26,8 @@ export function linesToRecord(text: string): Record<string, string> {
       continue;
     }
     const key = line.slice(0, separator).trim();
-    if (key) {
+    const hasName = key !== '';
+    if (hasName) {
       record[key] = line.slice(separator + 1).trim();
     }
   }

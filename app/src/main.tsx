@@ -14,14 +14,11 @@ const queryClient = new QueryClient({
     queries: {
       refetchOnWindowFocus: false,
       retry: (failureCount, error) => {
-        if (
+        const wasRefused =
           error instanceof ApiRequestError &&
           error.status >= HttpStatus.BadRequest &&
-          error.status < HttpStatus.InternalServerError
-        ) {
-          return false;
-        }
-        return failureCount < QUERY_DEFAULTS.maxRetries;
+          error.status < HttpStatus.InternalServerError;
+        return wasRefused === false && failureCount < QUERY_DEFAULTS.maxRetries;
       },
     },
   },
@@ -37,7 +34,7 @@ declare module '@tanstack/react-router' {
 }
 
 const rootElement = document.getElementById('root');
-if (!rootElement) {
+if (rootElement === null) {
   throw new Error('Missing #root element');
 }
 

@@ -106,7 +106,8 @@ interface RequestOptions {
 async function send(path: string, options: RequestOptions = {}): Promise<Response> {
   const headers: Record<string, string> = {};
   const token = getToken();
-  if (token) {
+  const hasToken = token !== null && token !== '';
+  if (hasToken) {
     headers.Authorization = `Bearer ${token}`;
   }
   if (options.body !== undefined) {

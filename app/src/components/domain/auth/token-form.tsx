@@ -15,7 +15,8 @@ export function TokenForm({ onUnlock }: TokenFormProps) {
     defaultValues: { token: '' },
     onSubmit: ({ value, formApi }) => {
       const token = value.token.trim();
-      if (!token) {
+      const isBlank = token === '';
+      if (isBlank) {
         return;
       }
       formApi.reset();

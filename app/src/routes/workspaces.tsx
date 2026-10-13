@@ -29,6 +29,7 @@ export const Route = createFileRoute('/workspaces')({
 function WorkspacesPage() {
   const workspaces = useWorkspaces();
   const { data } = workspaces;
+  const hasWorkspaces = data !== undefined && data.length > 0;
   const remove = useDeleteWorkspace();
   const toastSuccess = useSuccessToast();
   const toastApiError = useApiErrorToast();
@@ -60,7 +61,7 @@ function WorkspacesPage() {
                 }
               />
 
-              {data && data.length > 0 && (
+              {hasWorkspaces && (
                 <CardLayout
                   level={2}
                   title="All workspaces"

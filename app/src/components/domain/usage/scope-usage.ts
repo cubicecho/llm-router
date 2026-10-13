@@ -63,6 +63,6 @@ export interface ScopeUsageResult {
  */
 export function useScopeUsage(scope: UsageScope): ScopeUsageResult {
   const query = useUsage();
-  const usage = query.data && USAGE_BY_KIND[scope.kind](query.data, scope.id);
+  const usage = query.data === undefined ? undefined : USAGE_BY_KIND[scope.kind](query.data, scope.id);
   return { query, usage };
 }
