@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Pencil, Trash2 } from '@/components/ui/icons';
 import { useToast } from '@/components/ui/toast';
 import { useDeleteWorkspace, useUpdateWorkspace, useWorkspace, useWorkspaceModels } from '@/lib/queries';
-import { apiErrorMessage } from '@/lib/toast';
+import { useApiErrorToast } from '@/lib/toast';
 
 /** The `/workspaces/$slug` route. */
 export const Route = createFileRoute('/workspaces_/$slug')({
@@ -32,6 +32,7 @@ function WorkspaceDetailPage() {
   const update = useUpdateWorkspace();
   const remove = useDeleteWorkspace();
   const toast = useToast();
+  const toastApiError = useApiErrorToast();
   const [isEditOpen, setIsEditOpen] = useState(false);
 
   const handleDelete = () => {
@@ -40,7 +41,7 @@ function WorkspaceDetailPage() {
         toast(`Deleted workspace ${workspace?.name ?? slug}`, 'positive');
         navigate({ to: '/workspaces' });
       },
-      onError: (error) => toast(apiErrorMessage(error)),
+      onError: toastApiError,
     });
   };
 
@@ -100,7 +101,7 @@ function WorkspaceDetailPage() {
                         { slug, enabled },
                         {
                           onSuccess: () => toast(`${enabled ? 'Enabled' : 'Disabled'} ${workspace.name}`, 'positive'),
-                          onError: (error) => toast(apiErrorMessage(error)),
+                          onError: toastApiError,
                         },
                       )
                     }

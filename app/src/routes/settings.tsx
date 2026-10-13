@@ -15,7 +15,7 @@ import { ThemePicker } from '@/components/ui/theme-picker';
 import { useToast } from '@/components/ui/toast';
 import { formatCount, formatDuration } from '@/lib/format';
 import { useReloadConfig, useResetUsage, useRouterStatus, useSettings, useUpdateSettings } from '@/lib/queries';
-import { apiErrorMessage } from '@/lib/toast';
+import { useApiErrorToast } from '@/lib/toast';
 
 /** The `/settings` route. */
 export const Route = createFileRoute('/settings')({
@@ -47,6 +47,7 @@ function originsOf(text: string): string[] {
 function SettingsForm({ settings }: { settings: EditableSettings }) {
   const update = useUpdateSettings();
   const toast = useToast();
+  const toastApiError = useApiErrorToast();
   const form = useAppForm({
     defaultValues: {
       authEnabled: settings.authEnabled,
@@ -62,7 +63,7 @@ function SettingsForm({ settings }: { settings: EditableSettings }) {
         });
         toast('Settings saved', 'positive');
       } catch (error) {
-        toast(apiErrorMessage(error));
+        toastApiError(error);
       }
     },
   });
@@ -114,6 +115,7 @@ function SettingsPage() {
   const reload = useReloadConfig();
   const resetUsage = useResetUsage();
   const toast = useToast();
+  const toastApiError = useApiErrorToast();
   const { data } = status;
 
   const handleReload = () => {
@@ -123,14 +125,14 @@ function SettingsPage() {
           `Configuration reloaded: ${formatCount(reloaded.providerCount, 'provider')}, ${formatCount(reloaded.workspaceCount, 'workspace')}`,
           'positive',
         ),
-      onError: (error) => toast(apiErrorMessage(error)),
+      onError: toastApiError,
     });
   };
 
   const handleResetUsage = () => {
     resetUsage.mutate(undefined, {
       onSuccess: () => toast('Usage counts reset', 'positive'),
-      onError: (error) => toast(apiErrorMessage(error)),
+      onError: toastApiError,
     });
   };
 

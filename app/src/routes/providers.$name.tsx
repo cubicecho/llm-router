@@ -22,7 +22,7 @@ import {
   useRefreshProviderModels,
   useUpdateProvider,
 } from '@/lib/queries';
-import { apiErrorMessage } from '@/lib/toast';
+import { useApiErrorToast } from '@/lib/toast';
 
 /** The `/providers/$name` route. */
 export const Route = createFileRoute('/providers/$name')({
@@ -40,6 +40,7 @@ function ProviderDetailPage() {
   const remove = useDeleteProvider();
   const refresh = useRefreshProviderModels();
   const toast = useToast();
+  const toastApiError = useApiErrorToast();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const label = provider ? providerLabel(provider) : name;
   const headers = Object.entries(provider?.headers ?? {});
@@ -50,7 +51,7 @@ function ProviderDetailPage() {
         toast(`Deleted provider ${label}`, 'positive');
         navigate({ to: '/' });
       },
-      onError: (error) => toast(apiErrorMessage(error)),
+      onError: toastApiError,
     });
   };
 
@@ -146,7 +147,7 @@ function ProviderDetailPage() {
                           { name, enabled },
                           {
                             onSuccess: () => toast(`${enabled ? 'Enabled' : 'Disabled'} ${label}`, 'positive'),
-                            onError: (error) => toast(apiErrorMessage(error)),
+                            onError: toastApiError,
                           },
                         )
                       }
@@ -167,7 +168,7 @@ function ProviderDetailPage() {
                       size="sm"
                       loading={refresh.isPending}
                       loadingLabel="Refreshing…"
-                      onClick={() => refresh.mutate(name, { onError: (error) => toast(apiErrorMessage(error)) })}
+                      onClick={() => refresh.mutate(name, { onError: toastApiError })}
                       iconSlot={<RefreshCw />}
                       content="Refresh"
                     />

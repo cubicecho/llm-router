@@ -8,12 +8,11 @@ import { QueryState } from '@/components/query-state';
 import { SettingRow } from '@/components/setting-row';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { useToast } from '@/components/ui/toast';
 import { useEntityDialog } from '@/lib/entity-dialog';
 import { formatCount } from '@/lib/format';
 import { providerLabel } from '@/lib/provider-label';
 import { useProviders, useUpdateWorkspace } from '@/lib/queries';
-import { apiErrorMessage } from '@/lib/toast';
+import { useApiErrorToast } from '@/lib/toast';
 
 /**
  * Says what a member contributes.
@@ -40,7 +39,7 @@ function memberSummary(provider: ProviderStatus, isMember: boolean, allowed: str
 export function MembersCard({ workspace }: { workspace: WorkspaceStatus }) {
   const providers = useProviders();
   const update = useUpdateWorkspace();
-  const toast = useToast();
+  const toastApiError = useApiErrorToast();
   const modelsDialog = useEntityDialog<ProviderStatus>();
 
   const setMember = (provider: ProviderStatus, isOn: boolean) => {
@@ -48,7 +47,7 @@ export function MembersCard({ workspace }: { workspace: WorkspaceStatus }) {
     const member = { ...workspace.members[provider.name], enabled: isOn };
     update.mutate(
       { slug: workspace.slug, members: { ...workspace.members, [provider.name]: member } },
-      { onError: (error) => toast(apiErrorMessage(error)) },
+      { onError: toastApiError },
     );
   };
 

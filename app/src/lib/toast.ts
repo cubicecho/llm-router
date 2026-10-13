@@ -1,3 +1,4 @@
+import { useToast } from '@/components/ui/toast';
 import { ApiRequestError } from './api.ts';
 
 /** What a `CopyButton` whose clipboard write was refused says. */
@@ -14,4 +15,14 @@ export function apiErrorMessage(error: unknown): string {
     return `${error.message}: ${error.detail}`;
   }
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Gives a mutation's `onError` a handler that says what went wrong in a toast.
+ *
+ * @returns A function that shows whatever was thrown as an error toast.
+ */
+export function useApiErrorToast(): (error: unknown) => void {
+  const toast = useToast();
+  return (error) => toast(apiErrorMessage(error));
 }

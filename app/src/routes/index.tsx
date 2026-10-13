@@ -20,7 +20,7 @@ import { useToast } from '@/components/ui/toast';
 import { NEW_DIALOG_KEY, useEntityDialog } from '@/lib/entity-dialog';
 import { providerLabel } from '@/lib/provider-label';
 import { useDeleteProvider, useProviders } from '@/lib/queries';
-import { apiErrorMessage } from '@/lib/toast';
+import { useApiErrorToast } from '@/lib/toast';
 
 /** The `/` route. */
 export const Route = createFileRoute('/')({
@@ -33,6 +33,7 @@ function ProvidersPage() {
   const { data } = providers;
   const remove = useDeleteProvider();
   const toast = useToast();
+  const toastApiError = useApiErrorToast();
   const dialog = useEntityDialog<ProviderStatus>();
   const { openCreate } = dialog;
 
@@ -97,7 +98,7 @@ function ProvidersPage() {
                                 onConfirm={() =>
                                   remove.mutate(provider.name, {
                                     onSuccess: () => toast(`Deleted provider ${label}`, 'positive'),
-                                    onError: (error) => toast(apiErrorMessage(error)),
+                                    onError: toastApiError,
                                   })
                                 }
                                 iconSlot={<Trash2 className="text-negative" />}
