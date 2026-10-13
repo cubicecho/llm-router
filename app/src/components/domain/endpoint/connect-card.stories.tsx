@@ -89,6 +89,19 @@ export const MasksTheTokenUntilRevealed: Story = {
   },
 };
 
+export const FollowsTheTokenAsItChanges: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText(/Authorization: Bearer <YOUR_TOKEN>/)).toBeVisible();
+
+    setToken(TOKEN);
+    await expect(await canvas.findByText(/Authorization: Bearer ••••••••••••/)).toBeVisible();
+
+    clearToken();
+    await expect(await canvas.findByText(/Authorization: Bearer <YOUR_TOKEN>/)).toBeVisible();
+  },
+};
+
 export const WithNoModelUsesAPlaceholder: Story = {
   args: { model: undefined },
   play: async ({ canvasElement }) => {
