@@ -27,3 +27,14 @@ export interface UsageViewSettings {
 export const USAGE_VIEW_DEFAULTS: Readonly<UsageViewSettings> = Object.freeze({
   recentDays: 14,
 });
+
+/** How the query cache treats a request that failed. */
+export interface QuerySettings {
+  /** How many times a failed query is asked again before its error shows. A refused request is never retried. */
+  maxRetries: number;
+}
+
+/** The retry behaviour of every query. */
+export const QUERY_DEFAULTS: Readonly<QuerySettings> = Object.freeze({
+  maxRetries: 2,
+});

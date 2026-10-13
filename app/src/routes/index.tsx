@@ -18,11 +18,10 @@ import { QueryState } from '@/components/query-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Pencil, Plus, Trash2 } from '@/components/ui/icons';
-import { useToast } from '@/components/ui/toast';
 import { NEW_DIALOG_KEY, useEntityDialog } from '@/lib/entity-dialog';
 import { providerLabel } from '@/lib/provider-label';
 import { useDeleteProvider, useProviders } from '@/lib/queries';
-import { useApiErrorToast } from '@/lib/toast';
+import { useApiErrorToast, useSuccessToast } from '@/lib/toast';
 
 /** The `/` route. */
 export const Route = createFileRoute('/')({
@@ -34,7 +33,7 @@ function ProvidersPage() {
   const providers = useProviders();
   const { data } = providers;
   const remove = useDeleteProvider();
-  const toast = useToast();
+  const toastSuccess = useSuccessToast();
   const toastApiError = useApiErrorToast();
   const dialog = useEntityDialog<ProviderStatus>();
   const { openCreate } = dialog;
@@ -105,7 +104,7 @@ function ProvidersPage() {
                                       description={`Its models (${provider.name}/…) stop being served, and it is removed from every workspace. The server itself is not affected.`}
                                       onConfirm={() =>
                                         remove.mutate(provider.name, {
-                                          onSuccess: () => toast(`Deleted provider ${label}`, 'positive'),
+                                          onSuccess: () => toastSuccess(`Deleted provider ${label}`),
                                           onError: toastApiError,
                                         })
                                       }

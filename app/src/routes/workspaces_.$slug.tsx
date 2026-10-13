@@ -14,9 +14,8 @@ import { PageLayout } from '@/components/page-layout';
 import { QueryState } from '@/components/query-state';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Pencil, Trash2 } from '@/components/ui/icons';
-import { useToast } from '@/components/ui/toast';
 import { useDeleteWorkspace, useUpdateWorkspace, useWorkspace, useWorkspaceModels } from '@/lib/queries';
-import { useApiErrorToast } from '@/lib/toast';
+import { useApiErrorToast, useSuccessToast } from '@/lib/toast';
 
 /** The `/workspaces/$slug` route. */
 export const Route = createFileRoute('/workspaces_/$slug')({
@@ -32,14 +31,14 @@ function WorkspaceDetailPage() {
   const models = useWorkspaceModels(slug);
   const update = useUpdateWorkspace();
   const remove = useDeleteWorkspace();
-  const toast = useToast();
+  const toastSuccess = useSuccessToast();
   const toastApiError = useApiErrorToast();
   const [isEditOpen, setIsEditOpen] = useState(false);
 
   const handleDelete = () => {
     remove.mutate(slug, {
       onSuccess: () => {
-        toast(`Deleted workspace ${workspace?.name ?? slug}`, 'positive');
+        toastSuccess(`Deleted workspace ${workspace?.name ?? slug}`);
         navigate({ to: '/workspaces' });
       },
       onError: toastApiError,
@@ -103,8 +102,7 @@ function WorkspaceDetailPage() {
                           update.mutate(
                             { slug, enabled },
                             {
-                              onSuccess: () =>
-                                toast(`${enabled ? 'Enabled' : 'Disabled'} ${workspace.name}`, 'positive'),
+                              onSuccess: () => toastSuccess(`${enabled ? 'Enabled' : 'Disabled'} ${workspace.name}`),
                               onError: toastApiError,
                             },
                           )

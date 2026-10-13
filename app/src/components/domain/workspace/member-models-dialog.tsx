@@ -5,11 +5,11 @@ import { FormDialogFooter } from '@/components/layouts/form-dialog-footer';
 import { MultiSelectField } from '@/components/multi-select-field';
 import { Alert } from '@/components/ui/alert';
 import { FormElement } from '@/components/ui/form-element';
-import { useToast } from '@/components/ui/toast';
 import { unsavedChangesOf, useServerError } from '@/lib/form-dialog';
 import { listingFailure } from '@/lib/listing-failure';
 import { providerLabel } from '@/lib/provider-label';
 import { useProviderModels, useUpdateWorkspace } from '@/lib/queries';
+import { useSuccessToast } from '@/lib/toast';
 
 /** Ties the submit button in the footer to the form in the body. */
 const FORM_ID = 'member-models-form';
@@ -31,7 +31,7 @@ interface MemberModelsDialogProps {
  */
 export function MemberModelsDialog({ open, onOpenChange, workspace, provider }: MemberModelsDialogProps) {
   const update = useUpdateWorkspace();
-  const toast = useToast();
+  const toastSuccess = useSuccessToast();
   const listing = useProviderModels(provider.name);
   const { serverError, submit } = useServerError();
   const member = workspace.members[provider.name];
@@ -52,7 +52,7 @@ export function MemberModelsDialog({ open, onOpenChange, workspace, provider }: 
           slug: workspace.slug,
           members: { ...workspace.members, [provider.name]: { enabled: member?.enabled ?? true, models } },
         });
-        toast(`Saved the models of ${label}`, 'positive');
+        toastSuccess(`Saved the models of ${label}`);
         onOpenChange(false);
       });
     },

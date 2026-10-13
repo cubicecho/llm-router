@@ -14,7 +14,6 @@ import { QueryState } from '@/components/query-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Pencil, RefreshCw, Trash2 } from '@/components/ui/icons';
-import { useToast } from '@/components/ui/toast';
 import { providerLabel } from '@/lib/provider-label';
 import {
   useDeleteProvider,
@@ -23,7 +22,7 @@ import {
   useRefreshProviderModels,
   useUpdateProvider,
 } from '@/lib/queries';
-import { useApiErrorToast } from '@/lib/toast';
+import { useApiErrorToast, useSuccessToast } from '@/lib/toast';
 
 /** The `/providers/$name` route. */
 export const Route = createFileRoute('/providers/$name')({
@@ -40,7 +39,7 @@ function ProviderDetailPage() {
   const update = useUpdateProvider();
   const remove = useDeleteProvider();
   const refresh = useRefreshProviderModels();
-  const toast = useToast();
+  const toastSuccess = useSuccessToast();
   const toastApiError = useApiErrorToast();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const label = provider ? providerLabel(provider) : name;
@@ -49,7 +48,7 @@ function ProviderDetailPage() {
   const handleDelete = () => {
     remove.mutate(name, {
       onSuccess: () => {
-        toast(`Deleted provider ${label}`, 'positive');
+        toastSuccess(`Deleted provider ${label}`);
         navigate({ to: '/' });
       },
       onError: toastApiError,
@@ -153,7 +152,7 @@ function ProviderDetailPage() {
                             update.mutate(
                               { name, enabled },
                               {
-                                onSuccess: () => toast(`${enabled ? 'Enabled' : 'Disabled'} ${label}`, 'positive'),
+                                onSuccess: () => toastSuccess(`${enabled ? 'Enabled' : 'Disabled'} ${label}`),
                                 onError: toastApiError,
                               },
                             )

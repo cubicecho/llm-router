@@ -5,10 +5,10 @@ import { FormDialogFooter } from '@/components/layouts/form-dialog-footer';
 import { PasswordField } from '@/components/password-field';
 import { Alert } from '@/components/ui/alert';
 import { FormElement } from '@/components/ui/form-element';
-import { useToast } from '@/components/ui/toast';
 import { unsavedChangesOf, useServerError } from '@/lib/form-dialog';
 import { linesToRecord, malformedLines, recordToLines } from '@/lib/key-value';
 import { useCreateProvider, useUpdateProvider } from '@/lib/queries';
+import { useSuccessToast } from '@/lib/toast';
 
 /** Ties the submit button in the footer to the form in the body. */
 const FORM_ID = 'provider-form';
@@ -30,7 +30,7 @@ export function ProviderDialog({ open, onOpenChange, provider }: ProviderDialogP
   const isEdit = provider !== undefined;
   const create = useCreateProvider();
   const update = useUpdateProvider();
-  const toast = useToast();
+  const toastSuccess = useSuccessToast();
   const { serverError, submit } = useServerError();
 
   const form = useAppForm({
@@ -62,7 +62,7 @@ export function ProviderDialog({ open, onOpenChange, provider }: ProviderDialogP
             description: value.description.trim(),
             ...(apiKey ? { apiKey } : keyChange),
           });
-          toast(`Saved provider ${saved.name}`, 'positive');
+          toastSuccess(`Saved provider ${saved.name}`);
         } else {
           const saved = await create.mutateAsync({
             name: value.name.trim(),
@@ -71,7 +71,7 @@ export function ProviderDialog({ open, onOpenChange, provider }: ProviderDialogP
             description: value.description.trim() || undefined,
             apiKey: apiKey || undefined,
           });
-          toast(`Added provider ${saved.name}`, 'positive');
+          toastSuccess(`Added provider ${saved.name}`);
         }
         onOpenChange(false);
       });

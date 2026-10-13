@@ -13,11 +13,10 @@ import { Code, CodeBlock } from '@/components/ui/code';
 import { FormElement } from '@/components/ui/form-element';
 import { RefreshCw, Trash2 } from '@/components/ui/icons';
 import { ThemePicker } from '@/components/ui/theme-picker';
-import { useToast } from '@/components/ui/toast';
 import { formatCount, formatDuration } from '@/lib/format';
 import { nonBlankLines } from '@/lib/lines';
 import { useReloadConfig, useResetUsage, useRouterStatus, useSettings, useUpdateSettings } from '@/lib/queries';
-import { useApiErrorToast } from '@/lib/toast';
+import { useApiErrorToast, useSuccessToast } from '@/lib/toast';
 
 /** The `/settings` route. */
 export const Route = createFileRoute('/settings')({
@@ -35,7 +34,7 @@ const CONFIG_TREE = `config/
 /** The form over the settings the router can change while running. */
 function SettingsForm({ settings }: { settings: EditableSettings }) {
   const update = useUpdateSettings();
-  const toast = useToast();
+  const toastSuccess = useSuccessToast();
   const toastApiError = useApiErrorToast();
   const form = useAppForm({
     defaultValues: {
@@ -50,7 +49,7 @@ function SettingsForm({ settings }: { settings: EditableSettings }) {
           responseTimeoutMs: Math.round((value.responseTimeoutSeconds ?? 0) * MS_PER_SECOND),
           allowedOrigins: nonBlankLines(value.allowedOrigins),
         });
-        toast('Settings saved', 'positive');
+        toastSuccess('Settings saved');
       } catch (error) {
         toastApiError(error);
       }
@@ -103,16 +102,15 @@ function SettingsPage() {
   const settings = useSettings();
   const reload = useReloadConfig();
   const resetUsage = useResetUsage();
-  const toast = useToast();
+  const toastSuccess = useSuccessToast();
   const toastApiError = useApiErrorToast();
   const { data } = status;
 
   const handleReload = () => {
     reload.mutate(undefined, {
       onSuccess: (reloaded) =>
-        toast(
+        toastSuccess(
           `Configuration reloaded: ${formatCount(reloaded.providerCount, 'provider')}, ${formatCount(reloaded.workspaceCount, 'workspace')}`,
-          'positive',
         ),
       onError: toastApiError,
     });
@@ -120,7 +118,7 @@ function SettingsPage() {
 
   const handleResetUsage = () => {
     resetUsage.mutate(undefined, {
-      onSuccess: () => toast('Usage counts reset', 'positive'),
+      onSuccess: () => toastSuccess('Usage counts reset'),
       onError: toastApiError,
     });
   };

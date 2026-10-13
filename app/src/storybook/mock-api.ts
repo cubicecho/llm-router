@@ -1,5 +1,6 @@
 import { type ApiError, ErrorCode, HttpStatus } from '@llm-router/shared';
 import { fn } from 'storybook/test';
+import { JSON_CONTENT_TYPE } from '@/lib/api';
 import { resetAuth } from '@/lib/auth';
 
 /** What a mocked route was asked: the parsed JSON body and the request URL. */
@@ -71,7 +72,7 @@ export function pending(): typeof PENDING {
  * @returns The response, with a JSON Content-Type.
  */
 function jsonResponse(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': JSON_CONTENT_TYPE } });
 }
 
 /**

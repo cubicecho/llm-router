@@ -15,11 +15,10 @@ import { PageLayout } from '@/components/page-layout';
 import { QueryState } from '@/components/query-state';
 import { Button } from '@/components/ui/button';
 import { Pencil, Plus, Trash2 } from '@/components/ui/icons';
-import { useToast } from '@/components/ui/toast';
 import { NEW_DIALOG_KEY, useEntityDialog } from '@/lib/entity-dialog';
 import { formatCount, joinStats } from '@/lib/format';
 import { useDeleteWorkspace, useWorkspaces } from '@/lib/queries';
-import { useApiErrorToast } from '@/lib/toast';
+import { useApiErrorToast, useSuccessToast } from '@/lib/toast';
 
 /** The `/workspaces` route. */
 export const Route = createFileRoute('/workspaces')({
@@ -31,7 +30,7 @@ function WorkspacesPage() {
   const workspaces = useWorkspaces();
   const { data } = workspaces;
   const remove = useDeleteWorkspace();
-  const toast = useToast();
+  const toastSuccess = useSuccessToast();
   const toastApiError = useApiErrorToast();
   const dialog = useEntityDialog<WorkspaceStatus>();
   const { openCreate } = dialog;
@@ -104,7 +103,7 @@ function WorkspacesPage() {
                                       description={`The workspace's endpoint (${workspace.path}) stops responding. Its providers are not affected.`}
                                       onConfirm={() =>
                                         remove.mutate(workspace.slug, {
-                                          onSuccess: () => toast(`Deleted workspace ${workspace.name}`, 'positive'),
+                                          onSuccess: () => toastSuccess(`Deleted workspace ${workspace.name}`),
                                           onError: toastApiError,
                                         })
                                       }

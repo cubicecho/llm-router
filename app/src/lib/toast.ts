@@ -26,3 +26,13 @@ export function useApiErrorToast(): (error: unknown) => void {
   const toast = useToast();
   return (error) => toast(apiErrorMessage(error));
 }
+
+/**
+ * Gives a mutation's `onSuccess` a way to say what was done in a toast.
+ *
+ * @returns A function that shows a message as a success toast.
+ */
+export function useSuccessToast(): (message: string) => void {
+  const toast = useToast();
+  return (message) => toast(message, 'positive');
+}

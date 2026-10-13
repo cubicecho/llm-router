@@ -5,9 +5,9 @@ import { DialogLayout } from '@/components/dialog-layout';
 import { FormDialogFooter } from '@/components/layouts/form-dialog-footer';
 import { Alert } from '@/components/ui/alert';
 import { FormElement } from '@/components/ui/form-element';
-import { useToast } from '@/components/ui/toast';
 import { unsavedChangesOf, useServerError } from '@/lib/form-dialog';
 import { useCreateWorkspace, useUpdateWorkspace } from '@/lib/queries';
+import { useSuccessToast } from '@/lib/toast';
 
 /** Ties the submit button in the footer to the form in the body. */
 const FORM_ID = 'workspace-form';
@@ -31,7 +31,7 @@ export function WorkspaceDialog({ open, onOpenChange, workspace, onSaved }: Work
   const isEdit = workspace !== undefined;
   const create = useCreateWorkspace();
   const update = useUpdateWorkspace();
-  const toast = useToast();
+  const toastSuccess = useSuccessToast();
   const { serverError, submit } = useServerError();
 
   const form = useAppForm({
@@ -47,7 +47,7 @@ export function WorkspaceDialog({ open, onOpenChange, workspace, onSaved }: Work
         if (isEdit) {
           // An edit sends the description even when empty: left out, the server would keep the old one.
           const saved = await update.mutateAsync({ slug: workspace.slug, name, description, enabled: value.enabled });
-          toast(`Saved workspace ${saved.name}`, 'positive');
+          toastSuccess(`Saved workspace ${saved.name}`);
           onSaved?.(saved);
         } else {
           const saved = await create.mutateAsync({
@@ -55,7 +55,7 @@ export function WorkspaceDialog({ open, onOpenChange, workspace, onSaved }: Work
             description: description || undefined,
             enabled: value.enabled,
           });
-          toast(`Created workspace ${saved.name}`, 'positive');
+          toastSuccess(`Created workspace ${saved.name}`);
           onSaved?.(saved);
         }
         onOpenChange(false);

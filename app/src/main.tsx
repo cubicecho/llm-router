@@ -3,6 +3,7 @@ import { createRouter, RouterProvider } from '@tanstack/react-router';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ApiRequestError } from '@/lib/api';
+import { QUERY_DEFAULTS } from '@/lib/defaults';
 import { routeTree } from './routeTree.gen.ts';
 import './index.css';
 import { HttpStatus } from '@llm-router/shared';
@@ -20,7 +21,7 @@ const queryClient = new QueryClient({
         ) {
           return false;
         }
-        return failureCount < 2;
+        return failureCount < QUERY_DEFAULTS.maxRetries;
       },
     },
   },
