@@ -6,7 +6,7 @@ import { ConfirmButton } from '@/components/confirm-button';
 import { DescriptionList, PropertyRow } from '@/components/description-list';
 import { PAGE_BODY_CLASS } from '@/components/layouts/page-body';
 import { PageLayout } from '@/components/page-layout';
-import { QueryError, QueryState } from '@/components/query-state';
+import { QueryState } from '@/components/query-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Code, CodeBlock } from '@/components/ui/code';
@@ -150,12 +150,10 @@ function SettingsPage() {
           <CardLayout
             level={2}
             title="Router"
-            loading={status.isPending}
             contentSlot={
-              status.error ? (
-                <QueryError error={status.error} onRetry={() => status.refetch()} what="status" />
-              ) : (
-                data && (
+              <>
+                <QueryState query={status} what="status" count={data ? 1 : 0} rows={5} />
+                {data && (
                   <DescriptionList
                     contentSlot={
                       <>
@@ -183,8 +181,8 @@ function SettingsPage() {
                       </>
                     }
                   />
-                )
-              )
+                )}
+              </>
             }
           />
 
