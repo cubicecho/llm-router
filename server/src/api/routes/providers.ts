@@ -30,7 +30,7 @@ export function toProviderStatus(provider: ProviderConfig): ProviderStatus {
 /**
  * Builds provider CRUD and each provider's live model listing, mounted at /api/providers.
  *
- * @param deps.store - Holds the provider and workspace configs.
+ * @param deps.store - Holds the provider, workspace and pool configs.
  * @param deps.catalog - Lists a provider's models.
  * @param deps.usage - Holds each provider's counts; a deleted provider's are dropped.
  * @returns The router, with paths relative to /api/providers.
@@ -52,6 +52,17 @@ export function createProviderRoutes({ store, catalog, usage }: ApiDeps): Router
       if (name in workspace.members) {
         const { [name]: _removed, ...members } = workspace.members;
         await store.saveWorkspace({ ...workspace, members });
+      }
+    }
+  };
+
+  /** Takes a deleted provider's targets out of every pool, for the same reason. */
+  const removeFromPools = async (name: string): Promise<void> => {
+    for (const pool of store.getPools()) {
+      const targets = pool.targets.filter((target) => target.provider !== name);
+      const hadTarget = targets.length < pool.targets.length;
+      if (hadTarget) {
+        await store.savePool({ ...pool, targets });
       }
     }
   };
@@ -102,6 +113,7 @@ export function createProviderRoutes({ store, catalog, usage }: ApiDeps): Router
     const { name } = requireProvider(req.params.name);
     await store.deleteProvider(name);
     await removeFromWorkspaces(name);
+    await removeFromPools(name);
     catalog.forget(name);
     usage.forgetProvider(name);
     res.status(HttpStatus.NoContent).end();

@@ -71,7 +71,7 @@ export function createApp(deps: AppDeps): express.Express {
     res.json(health);
   });
 
-  app.use('/api', createAuthMiddleware(getAuth), createApiRouter({ store, catalog, usage }));
+  app.use('/api', createAuthMiddleware(getAuth), createApiRouter({ store, catalog, usage, balancer }));
 
   const gateway = { store, catalog, fetch, usage, balancer };
   app.use(
