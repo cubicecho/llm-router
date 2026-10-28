@@ -1,13 +1,15 @@
 import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import type { ProviderConfig } from '@llm-router/shared';
+import { PoolAffinity, type ProviderConfig } from '@llm-router/shared';
 import type { Request, Response } from 'express';
 import { USAGE_DEFAULTS } from '../core/defaults.ts';
-import { badInput, errorMessage, HttpError, upstreamFailed } from '../core/errors.ts';
+import { badInput, errorMessage, HttpError, unavailable, upstreamFailed } from '../core/errors.ts';
 import { isRecord } from '../core/is-record.ts';
 import { UsageReader } from '../usage/reader.ts';
 import type { ServedBy, UsageStore } from '../usage/store.ts';
-import { type EndpointScope, exposesModel, type ScopeMember } from './endpoint-scope.ts';
+import { affinityKey, SESSION_HEADER } from './affinity.ts';
+import type { PoolBalancer } from './balancer.ts';
+import { type EndpointScope, exposesModel, type ScopePool } from './endpoint-scope.ts';
 import { splitNamespacedModel } from './naming.ts';
 import { ModelNotFoundError } from './openai-error.ts';
 import { JSON_CONTENT_TYPE, providerHeaders } from './provider-headers.ts';
@@ -49,14 +51,28 @@ export interface ProxyCall {
   responseTimeoutMs: number;
   /** Counts the request and the tokens the provider reports for it. */
   usage: UsageStore;
+  /** Picks the target of a request that names a pool. */
+  balancer: PoolBalancer;
+}
+
+/** How a request that names a pool is placed. */
+export interface PoolRouting {
+  balancer: PoolBalancer;
+  /** The request's `X-Session-Id` header, when it has one. */
+  sessionHeader: string | undefined;
 }
 
 /** A request body matched to the provider that serves its model. */
-interface RoutedBody {
-  member: ScopeMember;
+export interface RoutedBody {
+  provider: ProviderConfig;
   /** The body to send on, its `model` set to the provider's own id. */
   body: Record<string, unknown>;
+  /** Frees the pool target's in-flight slot once the answer ends; does nothing for a provider's model id. */
+  release: () => void;
 }
+
+/** The release of a request that holds no pool slot. */
+const NOTHING_TO_RELEASE = (): void => {};
 
 /**
  * Tells whether a request body names a model.
@@ -69,16 +85,43 @@ function namesModel(body: unknown): body is Record<string, unknown> & { model: s
 }
 
 /**
- * Finds the scope member a request body's `model` names.
+ * Sends a request that names a pool to one of its targets.
  *
- * @param scope - The endpoint's members.
- * @param body - The parsed request body.
- * @returns The member, and the body with `model` rewritten to the provider's id.
- * @throws A 400 HttpError when the body has no `model`; a ModelNotFoundError when the endpoint does not serve it.
+ * @param scopePool - The pool and its candidates.
+ * @param body - The request body.
+ * @param routing - The balancer and the session header.
+ * @returns The target's provider, the body with `model` set to the target's model, and the lease's release.
+ * @throws A 503 HttpError when none of the pool's targets has an enabled provider.
  */
-export function routeBody(scope: EndpointScope, body: unknown): RoutedBody {
+function routeToPool(scopePool: ScopePool, body: Record<string, unknown>, routing: PoolRouting): RoutedBody {
+  const { pool, candidates } = scopePool;
+  const hasNoTarget = candidates.length === 0;
+  if (hasNoTarget) {
+    throw unavailable(`Pool "${pool.name}" has no target whose provider is enabled`);
+  }
+  const isSticky = pool.affinity === PoolAffinity.Sticky;
+  const key = isSticky ? affinityKey(body, routing.sessionHeader) : undefined;
+  const lease = routing.balancer.acquire(pool, candidates, key);
+  return { provider: lease.provider, body: { ...body, model: lease.model }, release: lease.release };
+}
+
+/**
+ * Finds the provider a request body's `model` names: directly as `<provider>/<model>`, or through a pool.
+ *
+ * @param scope - The endpoint's members and pools.
+ * @param body - The parsed request body.
+ * @param routing - Places a request that names a pool.
+ * @returns The provider, the body with `model` rewritten to the provider's id, and what frees a pool slot.
+ * @throws A 400 HttpError when the body has no `model`; a ModelNotFoundError when the endpoint does not serve it; a
+ * 503 HttpError for a pool with no enabled target.
+ */
+export function routeBody(scope: EndpointScope, body: unknown, routing: PoolRouting): RoutedBody {
   if (namesModel(body) === false) {
-    throw badInput('The request body must be a JSON object with a "model" string, as <provider>/<model>');
+    throw badInput('The request body must be a JSON object with a "model" string, as <provider>/<model> or a pool');
+  }
+  const scopePool = scope.pools.find((candidate) => candidate.pool.name === body.model);
+  if (scopePool) {
+    return routeToPool(scopePool, body, routing);
   }
   const split = splitNamespacedModel(
     body.model,
@@ -88,7 +131,7 @@ export function routeBody(scope: EndpointScope, body: unknown): RoutedBody {
   if (split === undefined || member === undefined || exposesModel(member, split.upstreamId) === false) {
     throw new ModelNotFoundError(body.model);
   }
-  return { member, body: { ...body, model: split.upstreamId } };
+  return { provider: member.provider, body: { ...body, model: split.upstreamId }, release: NOTHING_TO_RELEASE };
 }
 
 /**
@@ -154,6 +197,8 @@ interface UpstreamTarget {
   body: Record<string, unknown>;
   /** What the request is counted under. */
   served: ServedBy;
+  /** Frees the pool target's in-flight slot. */
+  release: () => void;
 }
 
 /**
@@ -161,7 +206,7 @@ interface UpstreamTarget {
  *
  * @param call - The scope and the path under `/v1`.
  * @param req - The client request, body already parsed.
- * @returns The provider, its URL, the body to send and what to count the request under.
+ * @returns The provider, its URL, the body to send, what to count the request under and what frees its pool slot.
  * @throws A 400 HttpError for a path that would leave the provider's base path or a body without a `model`; a
  * ModelNotFoundError when the endpoint does not serve the model.
  */
@@ -170,8 +215,8 @@ function upstreamTarget(call: ProxyCall, req: Request): UpstreamTarget {
   if (pathSegments.some((segment) => DOT_SEGMENTS.has(segment))) {
     throw badInput(`"${req.path}" is not a path this endpoint forwards`);
   }
-  const routed = routeBody(scope, req.body);
-  const { provider } = routed.member;
+  const routed = routeBody(scope, req.body, { balancer: call.balancer, sessionHeader: req.get(SESSION_HEADER) });
+  const { provider } = routed;
   const path = pathSegments.map(encodeURIComponent).join('/');
   const { search } = new URL(req.originalUrl, 'http://router.invalid');
   return {
@@ -179,6 +224,7 @@ function upstreamTarget(call: ProxyCall, req: Request): UpstreamTarget {
     url: `${upstreamUrl(provider.baseUrl, path)}${search}`,
     body: withStreamUsage(pathSegments.join('/'), routed.body),
     served: { workspace: scope.workspace, provider: provider.name, upstreamId: String(routed.body.model) },
+    release: routed.release,
   };
 }
 
@@ -234,21 +280,16 @@ function usageTap(reader: UsageReader): Transform {
 }
 
 /**
- * Forwards one JSON request to the provider its `model` names and pipes the answer back, a stream included.
+ * Sends a request to its target and pipes the answer back, counting what it reports.
  *
- * @param call - The scope, the path under `/v1`, and how to reach the provider.
- * @param req - The client request, body already parsed.
+ * @param call - How to reach the provider, and where to count.
+ * @param target - The provider, its URL and the body.
+ * @param req - The client request.
  * @param res - The client response.
- * @throws An HttpError before anything is sent: 400 or 404 for the request, 502 or 504 for the provider.
- *
- * @remarks
- * The provider's own status and body pass through untouched, errors included. A client that goes away aborts the
- * provider request. A streamed completion is sent on with `stream_options.include_usage` on, so the provider ends the
- * stream with its token counts; every answered request is counted in `call.usage`.
+ * @throws An HttpError before anything is sent: 502 or 504 for the provider.
  */
-export async function proxyToProvider(call: ProxyCall, req: Request, res: Response): Promise<void> {
+async function forwardToTarget(call: ProxyCall, target: UpstreamTarget, req: Request, res: Response): Promise<void> {
   const { usage } = call;
-  const target = upstreamTarget(call, req);
   const { provider, served } = target;
 
   const clientGone = new AbortController();
@@ -293,5 +334,29 @@ export async function proxyToProvider(call: ProxyCall, req: Request, res: Respon
     if (upstream.ok) {
       usage.record(served, reader.result());
     }
+  }
+}
+
+/**
+ * Forwards one JSON request to the provider its `model` names, directly or through a pool, and pipes the answer back.
+ *
+ * @param call - The scope, the path under `/v1`, how to reach the provider and the pool balancer.
+ * @param req - The client request, body already parsed.
+ * @param res - The client response.
+ * @throws An HttpError before anything is sent: 400 or 404 for the request, 503 for a pool with no enabled target,
+ * 502 or 504 for the provider.
+ *
+ * @remarks
+ * The provider's own status and body pass through untouched, errors included, and a client that goes away aborts the
+ * provider request. A streamed completion is sent on with `stream_options.include_usage` on, so the provider ends the
+ * stream with its token counts; every answered request is counted in `call.usage`. A pool target's slot is held until
+ * the answer ends or the client leaves.
+ */
+export async function proxyToProvider(call: ProxyCall, req: Request, res: Response): Promise<void> {
+  const target = upstreamTarget(call, req);
+  try {
+    await forwardToTarget(call, target, req, res);
+  } finally {
+    target.release();
   }
 }

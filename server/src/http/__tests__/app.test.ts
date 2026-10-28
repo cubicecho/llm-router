@@ -3,7 +3,7 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { ErrorCode } from '@llm-router/shared';
+import { ErrorCode, poolConfigSchema, workspaceConfigSchema } from '@llm-router/shared';
 import express from 'express';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -292,6 +292,30 @@ describe('LLM Router', () => {
       const res = await authed(request(app).get('/w/off/v1/models'));
       expect(res.status).toBe(404);
       expect(res.body.error.code).toBe('not_found');
+    });
+
+    it('lists a pool first, under its own name, on /v1 and on a workspace that serves it', async () => {
+      await store.savePool(
+        poolConfigSchema.parse({ name: 'shared', targets: [{ provider: 'beta', model: 'org/embed' }] }),
+      );
+      await store.saveWorkspace(workspaceConfigSchema.parse({ name: 'team', slug: 'team', pools: ['shared'] }));
+
+      const global = await authed(request(app).get('/v1/models'));
+      expect(global.body.data[0]).toEqual({ id: 'shared', object: 'model', created: 0, owned_by: 'pool' });
+      const team = await authed(request(app).get('/w/team/v1/models'));
+      expect(team.body.data.map((model: { id: string }) => model.id)).toEqual(['shared']);
+      const one = await authed(request(app).get('/w/team/v1/models/shared'));
+      expect(one.body).toMatchObject({ id: 'shared', owned_by: 'pool' });
+    });
+
+    it('leaves out a pool whose targets all have a disabled provider', async () => {
+      await store.savePool(
+        poolConfigSchema.parse({ name: 'shared', targets: [{ provider: 'beta', model: 'org/embed' }] }),
+      );
+      await authed(request(app).patch('/api/providers/beta')).send({ enabled: false });
+
+      const res = await authed(request(app).get('/v1/models'));
+      expect(res.body.data.map((model: { id: string }) => model.id)).not.toContain('shared');
     });
 
     it('reuses a listing until the provider changes', async () => {
