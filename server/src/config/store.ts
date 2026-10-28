@@ -4,7 +4,9 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
+  type PoolConfig,
   type ProviderConfig,
+  poolConfigSchema,
   providerConfigSchema,
   type SettingsFile,
   settingsFileSchema,
@@ -27,11 +29,12 @@ export interface ConfigState {
   settings: SettingsFile;
   providers: ProviderConfig[];
   workspaces: WorkspaceConfig[];
+  pools: PoolConfig[];
 }
 
 /**
- * Owns the flat config files under DATA_DIR/config: settings.json, providers/<name>.json and
- * workspaces/<slug>.json.
+ * Owns the flat config files under DATA_DIR/config: settings.json, providers/<name>.json,
+ * workspaces/<slug>.json and pools/<name>.json.
  *
  * @remarks
  * All writes are atomic (tmp file + chmod 0600 + rename). Emits a typed 'change' event, debounced, when the files
@@ -47,10 +50,13 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
   readonly providersDir: string;
   /** `<configDir>/workspaces`, one file per workspace. */
   readonly workspacesDir: string;
+  /** `<configDir>/pools`, one file per pool. */
+  readonly poolsDir: string;
 
   private settings: SettingsFile = settingsFileSchema.parse({});
   private readonly providers: ConfigCollection<ProviderConfig>;
   private readonly workspaces: ConfigCollection<WorkspaceConfig>;
+  private readonly pools: ConfigCollection<PoolConfig>;
   private watcher: FSWatcher | null = null;
   private watchDebounce: NodeJS.Timeout | null = null;
 
@@ -66,6 +72,7 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
     this.settingsFile = path.join(this.configDir, SETTINGS_FILE_NAME);
     this.providersDir = path.join(this.configDir, 'providers');
     this.workspacesDir = path.join(this.configDir, 'workspaces');
+    this.poolsDir = path.join(this.configDir, 'pools');
     this.providers = new ConfigCollection({
       dir: this.providersDir,
       kind: 'provider',
@@ -80,20 +87,28 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
       parse: workspaceConfigSchema.parse.bind(workspaceConfigSchema),
       keyOf: (workspace) => workspace.slug,
     });
+    this.pools = new ConfigCollection({
+      dir: this.poolsDir,
+      kind: 'pool',
+      keyField: 'name',
+      parse: poolConfigSchema.parse.bind(poolConfigSchema),
+      keyOf: (pool) => pool.name,
+    });
   }
 
   /** Creates the directories, seeds the defaults on first run and loads everything. */
   async init(): Promise<void> {
     await this.providers.init();
     await this.workspaces.init();
+    await this.pools.init();
     await this.loadAll();
   }
 
   /**
    * Re-read every config file from disk.
    *
-   * @returns The new state. Rejects when settings.json is invalid; a bad provider or workspace
-   * file is logged and skipped.
+   * @returns The new state. Rejects when settings.json is invalid; a bad provider, workspace or
+   * pool file is logged and skipped.
    */
   async reload(): Promise<ConfigState> {
     await this.loadAll();
@@ -136,13 +151,14 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
   /**
    * Reads everything held in memory at once.
    *
-   * @returns The current state, with providers and workspaces sorted by name.
+   * @returns The current state, with providers, workspaces and pools sorted by name.
    */
   snapshot(): ConfigState {
     return {
       settings: this.settings,
       providers: this.getProviders(),
       workspaces: this.getWorkspaces(),
+      pools: this.getPools(),
     };
   }
 
@@ -244,11 +260,50 @@ export class ConfigStore extends EventEmitter<{ change: [ConfigState] }> {
     await this.workspaces.delete(slug);
   }
 
+  /**
+   * Lists the pool configs.
+   *
+   * @returns A new array, sorted by name.
+   */
+  getPools(): PoolConfig[] {
+    return this.pools.values().sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /**
+   * Finds a pool config.
+   *
+   * @param name - The pool's name.
+   * @returns The config, or undefined when there is none by that name.
+   */
+  getPool(name: string): PoolConfig | undefined {
+    return this.pools.get(name);
+  }
+
+  /**
+   * Creates or replaces a pool config, in memory and in its file.
+   *
+   * @param config - The config; its `name` is the key and the file name.
+   * @returns The config as validated. Throws when it fails validation.
+   */
+  async savePool(config: PoolConfig): Promise<PoolConfig> {
+    return this.pools.save(config);
+  }
+
+  /**
+   * Removes a pool config, from memory and from disk.
+   *
+   * @param name - The pool's name; an unknown one is not an error.
+   */
+  async deletePool(name: string): Promise<void> {
+    await this.pools.delete(name);
+  }
+
   /** Replaces everything in memory with what the files hold, seeding settings.json when absent. */
   private async loadAll(): Promise<void> {
     this.settings = await this.loadSettings();
     await this.providers.load();
     await this.workspaces.load();
+    await this.pools.load();
   }
 
   /**
