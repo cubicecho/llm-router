@@ -5,8 +5,9 @@ operator registers **providers** (a base URL, an optional API key, extra
 headers), groups them into **workspaces**, and each workspace serves one
 OpenAI-compatible `/v1` at `/w/<slug>/v1` that lists and routes to every model
 its members offer. `/v1` is the same over every enabled provider. Model ids are
-`<provider>/<upstream id>`. Requests are forwarded as bytes: nothing is
-translated between API formats.
+`<provider>/<upstream id>`, or a **pool**'s name: one model served by several
+targets (a provider and its model id), placed by the router. Requests are
+forwarded as bytes: nothing is translated between API formats.
 
 It mirrors its sibling [mcp-router](https://github.com/cubicecho/mcp-router) in layout and tooling. Design
 decisions and their reasons are in [`README.md`](README.md).
@@ -23,7 +24,7 @@ Monorepo (npm workspaces): `shared/` (zod schemas and types, the contract),
 | `http/` | the Express app (`createApp`), server timeouts, graceful shutdown |
 | `auth/` | bearer-token and origin guards |
 | `api/` | the admin REST routes under `/api` and their error middleware |
-| `gateway/` | the `/v1` endpoints: model naming, scopes, model listing, the proxy |
+| `gateway/` | the `/v1` endpoints: model naming, scopes, model listing, the proxy, the pool balancer |
 | `usage/` | request and token counts: reading them out of responses, keeping them in `DATA_DIR/usage.json` |
 
 ## Commands
@@ -55,6 +56,16 @@ A single story file: `cd app && npx vitest run -c vitest.stories.config.ts src/r
   the auth and origin refusals, so client SDKs report them properly.
 - **A model id splits at its first `/`.** Provider names cannot contain `/`
   (`providerNameSchema`), upstream ids can (`openrouter/anthropic/claude-opus-5-5`).
+- **A model id without `/` names a pool.** `routeBody` hands it to the
+  `PoolBalancer` (`gateway/balancer.ts`), which skips targets of disabled
+  providers and picks by sticky key (`gateway/affinity.ts`, rendezvous hashing,
+  optional bounded load) or by strategy. The lease it returns holds an
+  in-flight slot; `proxyToProvider` releases it in a `finally`, so every exit
+  path frees it. Counts are in memory only.
+- **Pools are global; a workspace lists the ones it serves** (`pools`), and a
+  pool's targets need not be the workspace's members. Deleting a provider
+  removes its targets from every pool; deleting a pool takes it off every
+  workspace.
 - **One handler serves both `/v1` and `/w/:slug/v1`.** The difference is the
   scope from `gateway/endpoint-scope.ts`; do not fork the handlers.
 - **A provider's `baseUrl` includes its version path** (`https://api.openai.com/v1`,
