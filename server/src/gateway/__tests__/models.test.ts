@@ -104,6 +104,7 @@ describe('listScopeModels', () => {
     const scope: EndpointScope = {
       label: 'the test endpoint',
       members: [{ provider: ALPHA, allowedModels: ['small'] }, { provider: BETA }],
+      pools: [],
     };
     const { models, skipped } = await listScopeModels(scope, new ModelCatalog(fetch));
     expect(models.map(({ id, provider, upstreamId }) => ({ id, provider, upstreamId }))).toEqual([
@@ -121,7 +122,11 @@ describe('listScopeModels', () => {
       }
       return Response.json({ data: [{ id: 'embed' }] });
     };
-    const scope: EndpointScope = { label: 'the test endpoint', members: [{ provider: ALPHA }, { provider: BETA }] };
+    const scope: EndpointScope = {
+      label: 'the test endpoint',
+      members: [{ provider: ALPHA }, { provider: BETA }],
+      pools: [],
+    };
     const { models, skipped } = await listScopeModels(scope, new ModelCatalog(fetch));
     expect(models.map((model) => model.id)).toEqual(['beta/embed']);
     expect(skipped).toMatchObject([{ provider: 'alpha' }]);

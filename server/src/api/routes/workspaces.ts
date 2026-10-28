@@ -20,7 +20,7 @@ import { keptOrCleared } from './kept-or-cleared.ts';
 /**
  * Builds workspace CRUD and each workspace's merged model listing, mounted at /api/workspaces.
  *
- * @param deps.store - Holds the workspace and provider configs.
+ * @param deps.store - Holds the workspace, provider and pool configs.
  * @param deps.catalog - Lists each member's models.
  * @param deps.usage - Holds each workspace's counts, which follow a rename and outlive a delete.
  * @returns The router, with paths relative to /api/workspaces.
@@ -50,6 +50,15 @@ export function createWorkspaceRoutes({ store, catalog, usage }: ApiDeps): Route
     }
   };
 
+  /** Every pool a workspace lists must currently exist. */
+  const assertPoolsExist = (pools: readonly string[] | undefined): void => {
+    for (const name of pools ?? []) {
+      if (!store.getPool(name)) {
+        throw badInput(`Unknown pool "${name}" in workspace pools`);
+      }
+    }
+  };
+
   const requireValidSlug = (slug: string): string => {
     const parsed = workspaceSlugSchema.safeParse(slug);
     if (parsed.success === false) {
@@ -69,12 +78,14 @@ export function createWorkspaceRoutes({ store, catalog, usage }: ApiDeps): Route
       throw conflict(`Workspace "${slug}" already exists`);
     }
     assertMembersExist(request.members);
+    assertPoolsExist(request.pools);
     const config = workspaceConfigSchema.parse({
       name: request.name,
       slug,
       enabled: request.enabled ?? true,
       description: request.description || undefined,
       members: request.members ?? {},
+      pools: request.pools ?? [],
     });
     await store.saveWorkspace(config);
     res.status(HttpStatus.Created).json(toWorkspaceStatus(config));
@@ -88,6 +99,7 @@ export function createWorkspaceRoutes({ store, catalog, usage }: ApiDeps): Route
     const existing = requireWorkspace(req.params.slug);
     const update = updateWorkspaceRequestSchema.parse(req.body);
     assertMembersExist(update.members);
+    assertPoolsExist(update.pools);
     // Renaming re-derives the slug, and so the URL. An unchanged name keeps it, so a member edit never moves the URL.
     const name = update.name ?? existing.name;
     const isRenamed = update.name !== undefined && update.name !== existing.name;
@@ -102,6 +114,7 @@ export function createWorkspaceRoutes({ store, catalog, usage }: ApiDeps): Route
       enabled: update.enabled ?? existing.enabled,
       description: keptOrCleared(update.description, existing.description),
       members: update.members ?? existing.members,
+      pools: update.pools ?? existing.pools,
     });
     await store.saveWorkspace(next);
     if (slug !== existing.slug) {

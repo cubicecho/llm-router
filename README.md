@@ -6,7 +6,9 @@ Site: <https://cubicecho.github.io/llm-router/>
 Register **providers** (OpenAI, OpenRouter, Ollama, llama.cpp, vLLM, anything
 that speaks the OpenAI API), group them into **workspaces**, and point a client
 at a workspace. The client sees one `/v1` that lists every model the
-workspace's providers offer and routes each request to the right one.
+workspace's providers offer and routes each request to the right one. A
+**pool** serves one model from several servers under one name, spreading the
+load while keeping a conversation on the server that has its prompt cached.
 
 It is the model-server counterpart of
 [mcp-router](https://github.com/cubicecho/mcp-router), and is built the same way.
@@ -37,6 +39,8 @@ Then, in the UI:
 2. **Workspaces → New workspace.** Switch on the providers it should serve. A
    member serves every model its provider lists unless you choose a subset.
 3. Copy the connection details from the workspace page.
+4. Optional: **Pools → New pool** to serve one model from several servers, then
+   switch the pool on in the workspace.
 
 ## Connecting a client
 
@@ -44,7 +48,7 @@ Then, in the UI:
 | --- | --- |
 | Base URL | `http://<host>:3000/w/<slug>/v1` for a workspace, `http://<host>:3000/v1` for every enabled provider |
 | API key | the router's token |
-| Model | `<provider>/<model>`, e.g. `ollama/qwen3:32b` |
+| Model | `<provider>/<model>`, e.g. `ollama/qwen3:32b`, or a pool's name, e.g. `qwen3` |
 
 ```bash
 curl http://localhost:3000/w/research/v1/chat/completions \
@@ -65,14 +69,37 @@ client.chat.completions.create(model="ollama/qwen3:32b", messages=[{"role": "use
 | Path | Does |
 | --- | --- |
 | `GET /healthz` | `{ ok, version }`, no token needed |
-| `GET /v1/models`, `GET /v1/models/<id>` | the models of every enabled provider |
-| `POST /v1/<anything>` | forwards a JSON request to the provider named in `model` |
-| `/w/<slug>/v1/...` | the same, limited to one workspace's members and their allowed models |
-| `/api/...` | the admin API the UI uses: `status`, `settings`, `reload`, `providers`, `workspaces`, `usage` |
+| `GET /v1/models`, `GET /v1/models/<id>` | every enabled pool, then the models of every enabled provider |
+| `POST /v1/<anything>` | forwards a JSON request to the provider named in `model`, or to one target of the pool it names |
+| `/w/<slug>/v1/...` | the same, limited to one workspace's members, their allowed models and its pools |
+| `/api/...` | the admin API the UI uses: `status`, `settings`, `reload`, `providers`, `workspaces`, `pools`, `usage` |
 
 Any `POST` with a JSON body that carries a `model` is routed: `chat/completions`,
 `completions`, `embeddings`, `responses` and whatever else the provider
 supports. Streams (SSE) pass straight through.
+
+## Pools
+
+A pool is one model id, its name, served by several **targets**: each a
+provider and the model's id at that provider. Pools are global; the plain `/v1`
+serves every enabled one, and a workspace serves the ones it lists, whether or
+not their providers are its members. A pool suits several self-hosted servers
+(vLLM, llama.cpp, Ollama, SGLang) running the same weights.
+
+- **Strategy** places a request no sticky key decides: `least-busy` (fewest
+  requests in flight, the default), `round-robin` or `random`.
+- **Affinity** `sticky` (the default) keeps requests that share a key on the same
+  target, so its prefix cache is reused. The key is the `X-Session-Id` header,
+  else `prompt_cache_key`, else `user`, else the conversation's opening (its
+  system messages and first user message), so a growing chat keeps its key.
+  Targets are ranked per key by rendezvous hashing: a target leaving moves only
+  its own keys.
+- **Bounded load** (`maxLoadFactor`, off unless set) lets a sticky request skip
+  its own target when that target runs more than the factor times the pool's
+  average load, and take the next in its key's ranking. `1.25` is a good start.
+- A target whose provider is disabled is skipped; a pool with none left answers
+  503 and is left out of `/models`. In-flight counts live in memory and start
+  at zero on a restart. Usage is counted under the target that answered.
 
 ## Usage
 
@@ -107,11 +134,13 @@ saved; **Settings → Reload config** forces it.
 config/
   settings.json              port, authToken, authEnabled, host, allowedOrigins, responseTimeoutMs
   providers/<name>.json      name, baseUrl, apiKey, headers, enabled, displayName, description
-  workspaces/<slug>.json     name, slug, enabled, description, members
+  workspaces/<slug>.json     name, slug, enabled, description, members, pools
+  pools/<name>.json          name, enabled, strategy, affinity, maxLoadFactor, targets, displayName, description
 ```
 
 A workspace's `members` maps a provider name to `{ "enabled": true, "models": [...] }`.
-Leave `models` out to serve everything the provider lists.
+Leave `models` out to serve everything the provider lists. Its `pools` lists
+pool names. A pool's `targets` is a list of `{ "provider": "gpu-a", "model": "qwen3:32b" }`.
 
 `DATA_DIR/usage.json`, beside `config/`, holds the request and token counts. It
 is the router's to write, not to edit by hand: **Settings → Reset usage**
@@ -154,6 +183,10 @@ so put credentials in the API key field.
   unique and tells the router where to send a request without a lookup table.
   Responses are not rewritten, so the `model` in a response is the provider's
   own id.
+- **A pool's name has no `/`,** so it can never be a provider's model id, and
+  the router places a pool request itself rather than leaving the choice to
+  the client. Failover to another target is not done yet: a target that fails
+  answers with its own error.
 - **Workspaces choose, they do not configure.** A workspace is a set of
   providers and, per provider, an optional allowlist of models. Keys and URLs
   belong to the provider.
@@ -172,8 +205,8 @@ so put credentials in the API key field.
 - **Flat JSON files instead of a database,** as in mcp-router: the config is
   small, hand-editable and easy to back up.
 
-Not in this version: multipart endpoints (audio, files), model aliases,
-per-workspace keys, native non-OpenAI APIs, cost.
+Not in this version: multipart endpoints (audio, files), failover between a
+pool's targets, per-workspace keys, native non-OpenAI APIs, cost.
 
 ## Development
 

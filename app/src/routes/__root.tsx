@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { createLink, createRootRoute, Outlet, useLocation } from '@tanstack/react-router';
-import { LayersIcon, ServerIcon } from 'lucide-react';
+import { BoxesIcon, LayersIcon, ServerIcon } from 'lucide-react';
 import { ActionButton } from '@/components/action-button';
 import { TokenForm } from '@/components/domain/auth/token-form';
 import { AppLayout } from '@/components/layouts/app-layout';
@@ -22,6 +22,7 @@ export const Route = createRootRoute({
 const NAV_ITEMS = [
   { to: '/', label: 'Providers', icon: ServerIcon },
   { to: '/workspaces', label: 'Workspaces', icon: LayersIcon },
+  { to: '/pools', label: 'Pools', icon: BoxesIcon },
   { to: '/settings', label: 'Settings', icon: Settings },
 ] as const;
 

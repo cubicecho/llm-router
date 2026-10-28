@@ -10,6 +10,7 @@ import type { ConfigStore } from '../config/store.ts';
 import { HTTP_DEFAULTS } from '../core/defaults.ts';
 import { notFound } from '../core/errors.ts';
 import { SERVER_VERSION } from '../core/version.ts';
+import { PoolBalancer } from '../gateway/balancer.ts';
 import { globalScope, workspaceScope } from '../gateway/endpoint-scope.ts';
 import { ModelCatalog } from '../gateway/models.ts';
 import { openAiErrorMiddleware, sendOpenAiError } from '../gateway/openai-error.ts';
@@ -33,6 +34,8 @@ export interface AppDeps {
   catalog?: ModelCatalog;
   /** The loaded usage counts. A test leaves it out and gets an empty store over the same data directory. */
   usage?: UsageStore;
+  /** Override for tests; a balancer with nothing in flight when absent. */
+  balancer?: PoolBalancer;
   /** Override for tests; `<repo>/app/dist` when absent. */
   appDistDir?: string;
 }
@@ -48,6 +51,7 @@ export function createApp(deps: AppDeps): express.Express {
   const fetch = deps.fetch ?? outboundFetch();
   const catalog = deps.catalog ?? new ModelCatalog(fetch);
   const usage = deps.usage ?? new UsageStore(store.dataDir);
+  const balancer = deps.balancer ?? new PoolBalancer();
   const app = express();
   app.disable('x-powered-by');
   app.use(express.json({ limit: HTTP_DEFAULTS.bodyLimit }));
@@ -67,9 +71,9 @@ export function createApp(deps: AppDeps): express.Express {
     res.json(health);
   });
 
-  app.use('/api', createAuthMiddleware(getAuth), createApiRouter({ store, catalog, usage }));
+  app.use('/api', createAuthMiddleware(getAuth), createApiRouter({ store, catalog, usage, balancer }));
 
-  const gateway = { store, catalog, fetch, usage };
+  const gateway = { store, catalog, fetch, usage, balancer };
   app.use(
     GLOBAL_ENDPOINT_PATH,
     openAiOriginGuard,

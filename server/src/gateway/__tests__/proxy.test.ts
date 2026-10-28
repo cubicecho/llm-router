@@ -3,39 +3,116 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { ErrorCode, HttpStatus, type ProviderConfig } from '@llm-router/shared';
+import {
+  ErrorCode,
+  HttpStatus,
+  PoolAffinity,
+  PoolStrategy,
+  type ProviderConfig,
+  poolConfigSchema,
+} from '@llm-router/shared';
 import express from 'express';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { UsageStore } from '../../usage/store.ts';
+import { PoolBalancer } from '../balancer.ts';
 import type { EndpointScope } from '../endpoint-scope.ts';
 import { ModelNotFoundError, openAiErrorMiddleware } from '../openai-error.ts';
-import { proxyToProvider, routeBody, withStreamUsage } from '../proxy.ts';
+import { type PoolRouting, proxyToProvider, routeBody, withStreamUsage } from '../proxy.ts';
 import type { UpstreamFetch, UpstreamRequest } from '../upstream-fetch.ts';
 
 const ALPHA: ProviderConfig = { name: 'alpha', enabled: true, baseUrl: 'http://alpha.test/v1', headers: {} };
-const SCOPE: EndpointScope = { label: 'the test endpoint', members: [{ provider: ALPHA, allowedModels: ['small'] }] };
+const BETA: ProviderConfig = { name: 'beta', enabled: true, baseUrl: 'http://beta.test/v1', headers: {} };
+const SHARED = poolConfigSchema.parse({
+  name: 'shared',
+  strategy: PoolStrategy.RoundRobin,
+  affinity: PoolAffinity.None,
+});
+const SCOPE: EndpointScope = {
+  label: 'the test endpoint',
+  members: [{ provider: ALPHA, allowedModels: ['small'] }],
+  pools: [
+    {
+      pool: SHARED,
+      candidates: [
+        { provider: ALPHA, model: 'small' },
+        { provider: BETA, model: 'big' },
+      ],
+    },
+    { pool: poolConfigSchema.parse({ name: 'dark' }), candidates: [] },
+  ],
+};
 const CHAT_BODY = { model: 'alpha/small', messages: [] };
 const RESPONSE_TIMEOUT_MS = 1000;
 const TOO_MANY_REQUESTS = 429;
 
+/**
+ * Builds the pool routing of one request, with a balancer of its own.
+ *
+ * @param [sessionHeader] - The request's `X-Session-Id`.
+ * @returns The routing.
+ */
+function routing(sessionHeader?: string): PoolRouting {
+  return { balancer: new PoolBalancer(), sessionHeader };
+}
+
 describe('routeBody', () => {
   it('finds the member and rewrites the model to the provider id', () => {
-    const routed = routeBody(SCOPE, { model: 'alpha/small', temperature: 0 });
-    expect(routed.member.provider).toBe(ALPHA);
+    const routed = routeBody(SCOPE, { model: 'alpha/small', temperature: 0 }, routing());
+    expect(routed.provider).toBe(ALPHA);
     expect(routed.body).toEqual({ model: 'small', temperature: 0 });
   });
 
   it('refuses a body with no model string as a 400', () => {
     for (const body of [undefined, 'text', {}, { model: 7 }, { model: '' }]) {
-      expect(() => routeBody(SCOPE, body)).toThrow(expect.objectContaining({ code: ErrorCode.BadUserInput }));
+      expect(() => routeBody(SCOPE, body, routing())).toThrow(
+        expect.objectContaining({ code: ErrorCode.BadUserInput }),
+      );
     }
   });
 
   it('refuses a model the endpoint does not serve', () => {
-    for (const model of ['small', 'beta/small', 'alpha/large']) {
-      expect(() => routeBody(SCOPE, { model })).toThrow(ModelNotFoundError);
+    for (const model of ['small', 'beta/small', 'alpha/large', 'unknown-pool']) {
+      expect(() => routeBody(SCOPE, { model }, routing())).toThrow(ModelNotFoundError);
     }
+  });
+});
+
+describe('routeBody with a pool', () => {
+  it('sends a pool id to its targets, with the model set to each target id', () => {
+    const shared = routing();
+    const first = routeBody(SCOPE, { model: 'shared' }, shared);
+    const second = routeBody(SCOPE, { model: 'shared' }, shared);
+
+    expect([first.provider, first.body.model]).toEqual([ALPHA, 'small']);
+    expect([second.provider, second.body.model]).toEqual([BETA, 'big']);
+  });
+
+  it('holds the target slot until it is released', () => {
+    const shared = routing();
+    const routed = routeBody(SCOPE, { model: 'shared' }, shared);
+    expect(shared.balancer.inFlightTo('alpha', 'small')).toBe(1);
+
+    routed.release();
+
+    expect(shared.balancer.inFlightTo('alpha', 'small')).toBe(0);
+  });
+
+  it('keeps a sticky pool on one target for one session', () => {
+    const sticky = {
+      ...SCOPE,
+      pools: SCOPE.pools.map((p) => ({ ...p, pool: { ...p.pool, affinity: PoolAffinity.Sticky } })),
+    };
+    const shared = routing('session-1');
+    const providers = [1, 2, 3].map(() => routeBody(sticky, { model: 'shared' }, shared).provider.name);
+
+    expect(new Set(providers).size).toBe(1);
+  });
+
+  it('refuses a pool with no enabled target as unavailable', () => {
+    expect(() => routeBody(SCOPE, { model: 'dark' }, routing())).toThrow(
+      expect.objectContaining({ code: ErrorCode.Unavailable }),
+    );
   });
 });
 
@@ -65,6 +142,7 @@ describe('proxyToProvider', () => {
   let dataDir: string;
   let usage: UsageStore;
   let sent: { url: string; request: UpstreamRequest }[];
+  let balancer: PoolBalancer;
 
   /** Builds an app that proxies every POST, with a provider that answers through `answer`. */
   const proxyApp = (answer: UpstreamFetch, pathSegments?: readonly string[]): express.Express => {
@@ -81,6 +159,7 @@ describe('proxyToProvider', () => {
         fetch,
         responseTimeoutMs: RESPONSE_TIMEOUT_MS,
         usage,
+        balancer,
       };
       await proxyToProvider(call, req, res);
     });
@@ -94,6 +173,7 @@ describe('proxyToProvider', () => {
     dataDir = await mkdtemp(path.join(tmpdir(), 'llm-router-proxy-'));
     usage = new UsageStore(dataDir);
     sent = [];
+    balancer = new PoolBalancer();
   });
 
   afterEach(async () => {
@@ -114,6 +194,25 @@ describe('proxyToProvider', () => {
     await request(proxyApp(jsonAnswer)).post('/chat/completions?api-version=2').send(CHAT_BODY);
     expect(sent.map(({ url }) => url)).toEqual(['http://alpha.test/v1/chat/completions?api-version=2']);
     expect(JSON.parse(sent[0]?.request.body ?? '')).toEqual({ model: 'small', messages: [] });
+  });
+
+  it('sends a pool request to its target and frees the slot when the answer ends', async () => {
+    await request(proxyApp(jsonAnswer)).post('/chat/completions').send({ model: 'shared', messages: [] });
+
+    expect(sent.map(({ url }) => url)).toEqual(['http://alpha.test/v1/chat/completions']);
+    expect(JSON.parse(sent[0]?.request.body ?? '')).toMatchObject({ model: 'small' });
+    expect(usage.snapshot().providers).toMatchObject([{ provider: 'alpha', models: [{ upstreamId: 'small' }] }]);
+    expect(balancer.inFlightTo('alpha', 'small')).toBe(0);
+  });
+
+  it('frees the pool slot when the provider cannot be reached', async () => {
+    const unreachable: UpstreamFetch = async () => {
+      throw new Error('connect ECONNREFUSED');
+    };
+    const res = await request(proxyApp(unreachable)).post('/chat/completions').send({ model: 'shared' });
+
+    expect(res.status).toBe(HttpStatus.BadGateway);
+    expect(balancer.inFlightTo('alpha', 'small')).toBe(0);
   });
 
   it('passes the provider status and headers through, without the ones that describe its connection', async () => {

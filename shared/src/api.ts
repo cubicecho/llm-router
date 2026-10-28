@@ -3,6 +3,12 @@
 import { z } from 'zod';
 import {
   httpUrlSchema,
+  MIN_LOAD_FACTOR,
+  PoolAffinity,
+  PoolStrategy,
+  poolConfigSchema,
+  poolNameSchema,
+  poolTargetSchema,
   providerConfigSchema,
   providerNameSchema,
   workspaceConfigSchema,
@@ -164,6 +170,8 @@ export const createWorkspaceRequestSchema = z.object({
   description: z.string().optional(),
   /** Members keyed by provider name; only listed providers are in the workspace. */
   members: z.record(z.string(), workspaceMemberSchema).optional(),
+  /** The names of the pools the workspace serves. */
+  pools: z.array(poolNameSchema).optional(),
 });
 /** Body of the create-workspace request. */
 export type CreateWorkspaceRequest = z.infer<typeof createWorkspaceRequestSchema>;
@@ -176,9 +184,66 @@ export const updateWorkspaceRequestSchema = z.object({
   description: z.string().optional(),
   /** Full replacement of the members map when provided. */
   members: z.record(z.string(), workspaceMemberSchema).optional(),
+  /** Full replacement of the pool list when provided. */
+  pools: z.array(poolNameSchema).optional(),
 });
 /** Body of the update-workspace request. */
 export type UpdateWorkspaceRequest = z.infer<typeof updateWorkspaceRequestSchema>;
+
+/** A pool as the API returns it: its stored config. */
+export const poolStatusSchema = poolConfigSchema;
+/** A pool's stored config. */
+export type PoolStatus = z.infer<typeof poolStatusSchema>;
+
+/** Body of the create-pool request. */
+export const createPoolRequestSchema = z.object({
+  /** The model id clients ask for. */
+  name: poolNameSchema,
+  displayName: z.string().optional(),
+  description: z.string().optional(),
+  enabled: z.boolean().optional(),
+  strategy: z.enum(PoolStrategy).optional(),
+  affinity: z.enum(PoolAffinity).optional(),
+  /** Left out, bounded load is off. */
+  maxLoadFactor: z.number().min(MIN_LOAD_FACTOR).optional(),
+  targets: z.array(poolTargetSchema).optional(),
+});
+/** Body of the create-pool request. */
+export type CreatePoolRequest = z.infer<typeof createPoolRequestSchema>;
+
+/** Body of the update-pool request; an absent key is left unchanged. */
+export const updatePoolRequestSchema = z.object({
+  /** An empty string clears it. */
+  displayName: z.string().optional(),
+  /** An empty string clears it. */
+  description: z.string().optional(),
+  enabled: z.boolean().optional(),
+  strategy: z.enum(PoolStrategy).optional(),
+  affinity: z.enum(PoolAffinity).optional(),
+  /** Null turns bounded load off. */
+  maxLoadFactor: z.number().min(MIN_LOAD_FACTOR).nullable().optional(),
+  /** Full replacement of the targets when provided. */
+  targets: z.array(poolTargetSchema).optional(),
+});
+/** Body of the update-pool request. */
+export type UpdatePoolRequest = z.infer<typeof updatePoolRequestSchema>;
+
+/** One target of a pool, as it stands right now. */
+export const targetLoadSchema = poolTargetSchema.extend({
+  /** Requests sent to it that have not finished yet. */
+  inFlight: z.number().int().nonnegative(),
+  /** False when its provider is missing or disabled, so the pool skips it. */
+  available: z.boolean(),
+});
+/** One target of a pool, as it stands right now. */
+export type TargetLoad = z.infer<typeof targetLoadSchema>;
+
+/** What `GET /api/pools/:name/load` answers: each target in the pool's order. */
+export const poolLoadSchema = z.object({
+  targets: z.array(targetLoadSchema),
+});
+/** What `GET /api/pools/:name/load` answers. */
+export type PoolLoad = z.infer<typeof poolLoadSchema>;
 
 /** What `GET /healthz` answers. No auth, so it says nothing but that the process is serving. */
 export interface Health {

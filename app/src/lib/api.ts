@@ -1,5 +1,6 @@
 import {
   apiErrorSchema,
+  type CreatePoolRequest,
   type CreateProviderRequest,
   type CreateWorkspaceRequest,
   type EditableSettings,
@@ -8,12 +9,17 @@ import {
   HttpStatus,
   type ModelsResponse,
   modelsResponseSchema,
+  type PoolLoad,
+  type PoolStatus,
   type ProviderStatus,
+  poolLoadSchema,
+  poolStatusSchema,
   providerStatusSchema,
   type ReloadResponse,
   type RouterStatus,
   reloadResponseSchema,
   routerStatusSchema,
+  type UpdatePoolRequest,
   type UpdateProviderRequest,
   type UpdateSettingsRequest,
   type UpdateWorkspaceRequest,
@@ -33,6 +39,8 @@ const DEFAULT_METHOD = 'GET';
 const PROVIDERS_PATH = '/api/providers';
 /** Where the workspaces are listed and created. */
 const WORKSPACES_PATH = '/api/workspaces';
+/** Where the pools are listed and created. */
+const POOLS_PATH = '/api/pools';
 /** Makes the router ask the provider again and not answer a model listing from its cache. */
 const REFRESH_QUERY = '?refresh=true';
 
@@ -54,6 +62,16 @@ function providerPath(name: string): string {
  */
 function workspacePath(slug: string): string {
   return `${WORKSPACES_PATH}/${encodeURIComponent(slug)}`;
+}
+
+/**
+ * Builds the path of one pool's routes.
+ *
+ * @param name - The pool's name.
+ * @returns The path, the name escaped.
+ */
+function poolPath(name: string): string {
+  return `${POOLS_PATH}/${encodeURIComponent(name)}`;
 }
 
 /** A non-2xx answer from the API, carrying the HTTP status and the server's `{ error, code, detail? }` envelope. */
@@ -335,6 +353,65 @@ export function deleteWorkspace(slug: string): Promise<void> {
  */
 export function getWorkspaceModels(slug: string): Promise<ModelsResponse> {
   return request(`${workspacePath(slug)}/models`, modelsResponseSchema);
+}
+
+/**
+ * Lists every pool from `GET /api/pools`.
+ *
+ * @returns Each pool's config.
+ */
+export function listPools(): Promise<PoolStatus[]> {
+  return request(POOLS_PATH, z.array(poolStatusSchema));
+}
+
+/**
+ * Reads one pool from `GET /api/pools/:name`.
+ *
+ * @param name - The pool's name.
+ * @returns Its config.
+ */
+export function getPool(name: string): Promise<PoolStatus> {
+  return request(poolPath(name), poolStatusSchema);
+}
+
+/**
+ * Creates a pool with `POST /api/pools`.
+ *
+ * @param body - The pool to create.
+ * @returns The pool as saved.
+ */
+export function createPool(body: CreatePoolRequest): Promise<PoolStatus> {
+  return request(POOLS_PATH, poolStatusSchema, { method: 'POST', body });
+}
+
+/**
+ * Changes a pool with `PATCH /api/pools/:name`.
+ *
+ * @param name - The pool's name.
+ * @param body - Only the fields to change.
+ * @returns The pool after the change.
+ */
+export function updatePool(name: string, body: UpdatePoolRequest): Promise<PoolStatus> {
+  return request(poolPath(name), poolStatusSchema, { method: 'PATCH', body });
+}
+
+/**
+ * Deletes a pool with `DELETE /api/pools/:name`.
+ *
+ * @param name - The pool's name.
+ */
+export function deletePool(name: string): Promise<void> {
+  return requestNoContent(poolPath(name), { method: 'DELETE' });
+}
+
+/**
+ * Reads each target's live load from `GET /api/pools/:name/load`.
+ *
+ * @param name - The pool's name.
+ * @returns Each target with its requests in flight and whether its provider is enabled.
+ */
+export function getPoolLoad(name: string): Promise<PoolLoad> {
+  return request(`${poolPath(name)}/load`, poolLoadSchema);
 }
 
 /**

@@ -5,6 +5,7 @@ import { CardLayout } from '@/components/card-layout';
 import { EnabledSetting } from '@/components/domain/enabled/enabled-setting';
 import { ConnectCard } from '@/components/domain/endpoint/connect-card';
 import { ModelsCard } from '@/components/domain/model/models-card';
+import { PoolsCard } from '@/components/domain/pool/pools-card';
 import { UsageCard } from '@/components/domain/usage/usage-card';
 import { DeleteWorkspaceButton } from '@/components/domain/workspace/delete-workspace-button';
 import { MembersCard } from '@/components/domain/workspace/members-card';
@@ -22,7 +23,7 @@ export const Route = createFileRoute('/workspaces_/$slug')({
   component: WorkspaceDetailPage,
 });
 
-/** The page of one workspace: its switch, its providers, the models it serves, its usage and how to call it. */
+/** The page of one workspace: its switch, its providers and pools, the models it serves, its usage and how to call it. */
 function WorkspaceDetailPage() {
   const { slug } = Route.useParams();
   const navigate = useNavigate();
@@ -93,6 +94,8 @@ function WorkspaceDetailPage() {
               />
 
               <MembersCard workspace={workspace} />
+
+              <PoolsCard workspace={workspace} />
 
               <ModelsCard
                 query={models}

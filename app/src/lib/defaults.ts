@@ -8,6 +8,8 @@ export interface PollingSettings {
   modelsStaleMs: number;
   /** Request and token counts on the provider and workspace pages, in ms. */
   usageMs: number;
+  /** Each target's requests in flight on a pool's page, in ms. */
+  poolLoadMs: number;
 }
 
 /** The polling intervals and stale times the query hooks use. */
@@ -15,6 +17,7 @@ export const POLLING_DEFAULTS: Readonly<PollingSettings> = Object.freeze({
   statusMs: 15_000,
   modelsStaleMs: 60_000,
   usageMs: 15_000,
+  poolLoadMs: 3000,
 });
 
 /** How much of the usage a card shows before it is asked for more. */

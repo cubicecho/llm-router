@@ -3,7 +3,7 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { ErrorCode } from '@llm-router/shared';
+import { ErrorCode, poolConfigSchema, workspaceConfigSchema } from '@llm-router/shared';
 import express from 'express';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -233,6 +233,96 @@ describe('LLM Router', () => {
     });
   });
 
+  describe('pools', () => {
+    const createPool = (body: Record<string, unknown>) => authed(request(app).post('/api/pools')).send(body);
+
+    beforeEach(async () => {
+      await addProvider({ name: 'alpha', baseUrl: alpha.baseUrl });
+      await addProvider({ name: 'beta', baseUrl: beta.baseUrl });
+    });
+
+    it('creates, updates and deletes a pool', async () => {
+      const created = await createPool({
+        name: 'shared',
+        maxLoadFactor: 1.5,
+        targets: [{ provider: 'alpha', model: 'small' }],
+      });
+      expect(created.status).toBe(201);
+      expect(created.body).toMatchObject({ name: 'shared', strategy: 'least-busy', affinity: 'sticky' });
+      expect((await createPool({ name: 'shared' })).status).toBe(409);
+
+      const updated = await authed(request(app).patch('/api/pools/shared')).send({
+        strategy: 'round-robin',
+        maxLoadFactor: null,
+      });
+      expect(updated.body.strategy).toBe('round-robin');
+      expect(updated.body.maxLoadFactor).toBeUndefined();
+      expect(updated.body.targets).toEqual([{ provider: 'alpha', model: 'small' }]);
+
+      expect((await authed(request(app).get('/api/pools'))).body.map((pool: { name: string }) => pool.name)).toEqual([
+        'shared',
+      ]);
+      expect((await authed(request(app).delete('/api/pools/shared'))).status).toBe(204);
+      expect((await authed(request(app).get('/api/pools/shared'))).status).toBe(404);
+    });
+
+    it('refuses a target whose provider does not exist, and a load factor below 1', async () => {
+      expect((await createPool({ name: 'shared', targets: [{ provider: 'nope', model: 'm' }] })).status).toBe(400);
+      expect((await createPool({ name: 'shared', maxLoadFactor: 0.5 })).status).toBe(400);
+    });
+
+    it('takes a deleted provider out of its pools, and a deleted pool off its workspaces', async () => {
+      await createPool({
+        name: 'shared',
+        targets: [
+          { provider: 'alpha', model: 'small' },
+          { provider: 'beta', model: 'org/embed' },
+        ],
+      });
+      const team = await authed(request(app).post('/api/workspaces')).send({ name: 'Team', pools: ['shared'] });
+      expect(team.body.pools).toEqual(['shared']);
+      const unknownPool = await authed(request(app).patch('/api/workspaces/team')).send({ pools: ['nope'] });
+      expect(unknownPool.status).toBe(400);
+
+      await authed(request(app).delete('/api/providers/beta'));
+      expect(store.getPool('shared')?.targets).toEqual([{ provider: 'alpha', model: 'small' }]);
+
+      await authed(request(app).delete('/api/pools/shared'));
+      expect(store.getWorkspace('team')?.pools).toEqual([]);
+    });
+
+    it('reports each target’s requests in flight and whether its provider is enabled', async () => {
+      await createPool({
+        name: 'shared',
+        targets: [
+          { provider: 'alpha', model: 'small' },
+          { provider: 'beta', model: 'org/embed' },
+        ],
+      });
+      await authed(request(app).patch('/api/providers/beta')).send({ enabled: false });
+
+      const load = await authed(request(app).get('/api/pools/shared/load'));
+      expect(load.body).toEqual({
+        targets: [
+          { provider: 'alpha', model: 'small', inFlight: 0, available: true },
+          { provider: 'beta', model: 'org/embed', inFlight: 0, available: false },
+        ],
+      });
+    });
+
+    it('forwards a request for a pool to its target, through a workspace that serves it', async () => {
+      await createPool({ name: 'shared', targets: [{ provider: 'alpha', model: 'small' }] });
+      await authed(request(app).post('/api/workspaces')).send({ name: 'Team', pools: ['shared'] });
+
+      const res = await authed(request(app).post('/w/team/v1/chat/completions')).send({
+        model: 'shared',
+        messages: [{ role: 'user', content: 'hi' }],
+      });
+      expect(res.status).toBe(200);
+      expect(alpha.seen.at(-1)?.body).toMatchObject({ model: 'small' });
+    });
+  });
+
   describe('model listing', () => {
     beforeEach(async () => {
       await addProvider({ name: 'alpha', baseUrl: alpha.baseUrl });
@@ -292,6 +382,30 @@ describe('LLM Router', () => {
       const res = await authed(request(app).get('/w/off/v1/models'));
       expect(res.status).toBe(404);
       expect(res.body.error.code).toBe('not_found');
+    });
+
+    it('lists a pool first, under its own name, on /v1 and on a workspace that serves it', async () => {
+      await store.savePool(
+        poolConfigSchema.parse({ name: 'shared', targets: [{ provider: 'beta', model: 'org/embed' }] }),
+      );
+      await store.saveWorkspace(workspaceConfigSchema.parse({ name: 'team', slug: 'team', pools: ['shared'] }));
+
+      const global = await authed(request(app).get('/v1/models'));
+      expect(global.body.data[0]).toEqual({ id: 'shared', object: 'model', created: 0, owned_by: 'pool' });
+      const team = await authed(request(app).get('/w/team/v1/models'));
+      expect(team.body.data.map((model: { id: string }) => model.id)).toEqual(['shared']);
+      const one = await authed(request(app).get('/w/team/v1/models/shared'));
+      expect(one.body).toMatchObject({ id: 'shared', owned_by: 'pool' });
+    });
+
+    it('leaves out a pool whose targets all have a disabled provider', async () => {
+      await store.savePool(
+        poolConfigSchema.parse({ name: 'shared', targets: [{ provider: 'beta', model: 'org/embed' }] }),
+      );
+      await authed(request(app).patch('/api/providers/beta')).send({ enabled: false });
+
+      const res = await authed(request(app).get('/v1/models'));
+      expect(res.body.data.map((model: { id: string }) => model.id)).not.toContain('shared');
     });
 
     it('reuses a listing until the provider changes', async () => {

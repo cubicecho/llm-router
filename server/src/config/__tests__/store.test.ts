@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import type { ProviderConfig } from '@llm-router/shared';
+import { PoolAffinity, type PoolConfig, PoolStrategy, type ProviderConfig } from '@llm-router/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConfigStore } from '../store.ts';
 
@@ -11,6 +11,15 @@ const TEST_PROVIDER: ProviderConfig = {
   baseUrl: 'http://localhost:11434/v1',
   apiKey: 'secret',
   headers: { 'X-Team': 'a' },
+};
+
+const TEST_POOL: PoolConfig = {
+  name: 'llama70b',
+  enabled: true,
+  strategy: PoolStrategy.RoundRobin,
+  affinity: PoolAffinity.None,
+  maxLoadFactor: 1.5,
+  targets: [{ provider: 'echo', model: 'llama3.3:70b' }],
 };
 
 describe('ConfigStore', () => {
@@ -68,6 +77,21 @@ describe('ConfigStore', () => {
     await fresh.close();
   });
 
+  it('round-trips pool configs through disk and reload', async () => {
+    await store.init();
+    await store.savePool(TEST_POOL);
+    expect(store.getPool('llama70b')).toEqual(TEST_POOL);
+
+    const fresh = new ConfigStore(dataDir);
+    await fresh.init();
+    expect(fresh.snapshot().pools).toEqual([TEST_POOL]);
+
+    await fresh.deletePool('llama70b');
+    const reloaded = await store.reload();
+    expect(reloaded.pools).toHaveLength(0);
+    await fresh.close();
+  });
+
   it('preserves unknown keys in hand-edited provider files', async () => {
     await store.init();
     await writeFile(
@@ -102,7 +126,9 @@ describe('ConfigStore', () => {
     await expect(store.saveProvider(TEST_PROVIDER)).rejects.toThrow();
     expect(store.getProvider('echo')).toBeUndefined();
 
-    await expect(store.saveWorkspace({ name: 'Team', slug: 'team', enabled: true, members: {} })).rejects.toThrow();
+    await expect(
+      store.saveWorkspace({ name: 'Team', slug: 'team', enabled: true, members: {}, pools: [] }),
+    ).rejects.toThrow();
     expect(store.getWorkspace('team')).toBeUndefined();
   });
 
