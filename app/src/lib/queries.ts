@@ -1,11 +1,15 @@
 import type {
+  CreatePoolRequest,
   CreateProviderRequest,
   CreateWorkspaceRequest,
   EditableSettings,
   ModelsResponse,
+  PoolLoad,
+  PoolStatus,
   ProviderStatus,
   ReloadResponse,
   RouterStatus,
+  UpdatePoolRequest,
   UpdateProviderRequest,
   UpdateSettingsRequest,
   UpdateWorkspaceRequest,
@@ -35,6 +39,9 @@ export const queryKeys = {
   workspaces: ['workspaces'] as const,
   workspace: (slug: string) => ['workspaces', slug] as const,
   workspaceModels: (slug: string) => ['workspaces', slug, WORKSPACE_MODELS_SEGMENT] as const,
+  pools: ['pools'] as const,
+  pool: (name: string) => ['pools', name] as const,
+  poolLoad: (name: string) => ['pools', name, 'load'] as const,
   usage: ['usage'] as const,
 };
 
@@ -152,6 +159,39 @@ export function useWorkspaceModels(slug: string): Query<ModelsResponse> {
 }
 
 /**
+ * Lists every pool.
+ *
+ * @returns The query; `data` is each pool's config.
+ */
+export function usePools(): Query<PoolStatus[]> {
+  return useQuery({ queryKey: queryKeys.pools, queryFn: api.listPools });
+}
+
+/**
+ * Reads one pool.
+ *
+ * @param name - The pool's name.
+ * @returns The query; `data` is the pool's config.
+ */
+export function usePool(name: string): Query<PoolStatus> {
+  return useQuery({ queryKey: queryKeys.pool(name), queryFn: () => api.getPool(name) });
+}
+
+/**
+ * Reads each target's live load and keeps it polled.
+ *
+ * @param name - The pool's name.
+ * @returns The query; `data.targets` is each target with its requests in flight.
+ */
+export function usePoolLoad(name: string): Query<PoolLoad> {
+  return useQuery({
+    queryKey: queryKeys.poolLoad(name),
+    queryFn: () => api.getPoolLoad(name),
+    refetchInterval: POLLING_DEFAULTS.poolLoadMs,
+  });
+}
+
+/**
  * Builds a function that marks queries stale.
  *
  * @returns The function; takes the keys to invalidate, each with everything under it.
@@ -166,13 +206,17 @@ function useInvalidate(): (...keys: readonly (readonly string[])[]) => void {
 }
 
 /**
- * What a change to a provider makes stale: the providers and their models, the router status, and the
- * workspaces, whose model lists are built from their members' and which lose a deleted provider.
+ * What a change to a provider makes stale: the providers and their models, the router status, the workspaces,
+ * whose model lists are built from their members' and which lose a deleted provider, and the pools, which lose its
+ * targets.
  */
-const PROVIDER_CHANGE_KEYS = [queryKeys.providers, queryKeys.status, queryKeys.workspaces] as const;
+const PROVIDER_CHANGE_KEYS = [queryKeys.providers, queryKeys.status, queryKeys.workspaces, queryKeys.pools] as const;
 
 /** What a change to a workspace makes stale: the workspaces, their model lists, and the router status. */
 const WORKSPACE_CHANGE_KEYS = [queryKeys.workspaces, queryKeys.status] as const;
+
+/** What a change to a pool makes stale: the pools and their load, and the workspaces, which lose a deleted pool. */
+const POOL_CHANGE_KEYS = [queryKeys.pools, queryKeys.workspaces] as const;
 
 /**
  * Adds a provider.
@@ -280,6 +324,52 @@ export function useDeleteWorkspace(): Mutation<void, string> {
   return useMutation({
     mutationFn: (slug: string) => api.deleteWorkspace(slug),
     onSuccess: () => invalidate(...WORKSPACE_CHANGE_KEYS, queryKeys.usage),
+  });
+}
+
+/**
+ * Creates a pool.
+ *
+ * @returns The mutation; takes the pool to create, yields it as saved, and invalidates everything a pool change
+ * makes stale.
+ */
+export function useCreatePool(): Mutation<PoolStatus, CreatePoolRequest> {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (body: CreatePoolRequest) => api.createPool(body),
+    onSuccess: () => invalidate(...POOL_CHANGE_KEYS),
+  });
+}
+
+/**
+ * Changes a pool.
+ *
+ * @returns The mutation; takes the pool's `name` plus the fields to change, yields the pool, keeps it as that pool's
+ * query data, and invalidates everything a pool change makes stale.
+ */
+export function useUpdatePool(): Mutation<PoolStatus, UpdatePoolRequest & { name: string }> {
+  const invalidate = useInvalidate();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, ...body }: UpdatePoolRequest & { name: string }) => api.updatePool(name, body),
+    onSuccess: (saved) => {
+      // Held at once, not after the refetch: the next change to the targets is built on the pool on screen.
+      queryClient.setQueryData(queryKeys.pool(saved.name), saved);
+      invalidate(...POOL_CHANGE_KEYS);
+    },
+  });
+}
+
+/**
+ * Deletes a pool.
+ *
+ * @returns The mutation; takes the pool's name and invalidates everything a pool change makes stale.
+ */
+export function useDeletePool(): Mutation<void, string> {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (name: string) => api.deletePool(name),
+    onSuccess: () => invalidate(...POOL_CHANGE_KEYS),
   });
 }
 

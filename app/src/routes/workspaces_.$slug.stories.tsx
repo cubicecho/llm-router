@@ -119,6 +119,15 @@ export const SwitchesAMemberOff: Story = {
   },
 };
 
+export const ServesAPool: Story = {
+  parameters: { api: { ...appRoutes(), [UPDATE_ROUTE]: () => workspace({ pools: ['qwen3'] }) } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole('switch', { name: 'Serve qwen3' }));
+    await waitFor(() => expect(apiRequest).toHaveBeenCalledWith(UPDATE_ROUTE, { pools: ['qwen3'] }));
+  },
+};
+
 export const FollowsARenameToTheNewUrl: Story = {
   parameters: {
     api: {

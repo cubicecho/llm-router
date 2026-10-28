@@ -10,14 +10,21 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PoolsRouteImport } from './routes/pools'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as WorkspacesRouteImport } from './routes/workspaces'
+import { Route as PoolsNameRouteImport } from './routes/pools_.$name'
 import { Route as ProvidersNameRouteImport } from './routes/providers.$name'
 import { Route as WorkspacesSlugRouteImport } from './routes/workspaces_.$slug'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PoolsRoute = PoolsRouteImport.update({
+  id: '/pools',
+  path: '/pools',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -28,6 +35,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const WorkspacesRoute = WorkspacesRouteImport.update({
   id: '/workspaces',
   path: '/workspaces',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PoolsNameRoute = PoolsNameRouteImport.update({
+  id: '/pools_/$name',
+  path: '/pools/$name',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProvidersNameRoute = ProvidersNameRouteImport.update({
@@ -43,46 +55,68 @@ const WorkspacesSlugRoute = WorkspacesSlugRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/pools': typeof PoolsRoute
   '/settings': typeof SettingsRoute
   '/workspaces': typeof WorkspacesRoute
+  '/pools/$name': typeof PoolsNameRoute
   '/providers/$name': typeof ProvidersNameRoute
   '/workspaces/$slug': typeof WorkspacesSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/pools': typeof PoolsRoute
   '/settings': typeof SettingsRoute
   '/workspaces': typeof WorkspacesRoute
+  '/pools/$name': typeof PoolsNameRoute
   '/providers/$name': typeof ProvidersNameRoute
   '/workspaces/$slug': typeof WorkspacesSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/pools': typeof PoolsRoute
   '/settings': typeof SettingsRoute
   '/workspaces': typeof WorkspacesRoute
+  '/pools_/$name': typeof PoolsNameRoute
   '/providers/$name': typeof ProvidersNameRoute
   '/workspaces_/$slug': typeof WorkspacesSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/settings' | '/workspaces' | '/providers/$name' | '/workspaces/$slug'
+    | '/'
+    | '/pools'
+    | '/settings'
+    | '/workspaces'
+    | '/pools/$name'
+    | '/providers/$name'
+    | '/workspaces/$slug'
   fileRoutesByTo: FileRoutesByTo
   to:
-    '/' | '/settings' | '/workspaces' | '/providers/$name' | '/workspaces/$slug'
+    | '/'
+    | '/pools'
+    | '/settings'
+    | '/workspaces'
+    | '/pools/$name'
+    | '/providers/$name'
+    | '/workspaces/$slug'
   id:
     | '__root__'
     | '/'
+    | '/pools'
     | '/settings'
     | '/workspaces'
+    | '/pools_/$name'
     | '/providers/$name'
     | '/workspaces_/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  PoolsRoute: typeof PoolsRoute
   SettingsRoute: typeof SettingsRoute
   WorkspacesRoute: typeof WorkspacesRoute
+  PoolsNameRoute: typeof PoolsNameRoute
   ProvidersNameRoute: typeof ProvidersNameRoute
   WorkspacesSlugRoute: typeof WorkspacesSlugRoute
 }
@@ -94,6 +128,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pools': {
+      id: '/pools'
+      path: '/pools'
+      fullPath: '/pools'
+      preLoaderRoute: typeof PoolsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -108,6 +149,13 @@ declare module '@tanstack/react-router' {
       path: '/workspaces'
       fullPath: '/workspaces'
       preLoaderRoute: typeof WorkspacesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pools_/$name': {
+      id: '/pools_/$name'
+      path: '/pools/$name'
+      fullPath: '/pools/$name'
+      preLoaderRoute: typeof PoolsNameRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/providers/$name': {
@@ -129,8 +177,10 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  PoolsRoute: PoolsRoute,
   SettingsRoute: SettingsRoute,
   WorkspacesRoute: WorkspacesRoute,
+  PoolsNameRoute: PoolsNameRoute,
   ProvidersNameRoute: ProvidersNameRoute,
   WorkspacesSlugRoute: WorkspacesSlugRoute,
 }

@@ -3,8 +3,12 @@ import {
   editableSettingsSchema,
   type ModelsResponse,
   modelsResponseSchema,
+  type PoolLoad,
+  type PoolStatus,
   type ProviderStatus,
   type ProviderUsage,
+  poolLoadSchema,
+  poolStatusSchema,
   providerStatusSchema,
   type ReloadResponse,
   type RouterStatus,
@@ -110,6 +114,36 @@ export const WORKSPACE_MODELS = modelsResponseSchema.parse({
 });
 
 /**
+ * Builds a sticky, least-busy pool over the local provider and a second Ollama box, with bounded load on.
+ *
+ * @param [overrides] - Any part of the pool to replace.
+ * @returns The pool, parsed through the shared schema.
+ */
+export function pool(overrides: Partial<PoolStatus> = {}): PoolStatus {
+  return poolStatusSchema.parse({
+    name: 'qwen3',
+    description: 'Qwen3 32B on both GPU boxes.',
+    enabled: true,
+    strategy: 'least-busy',
+    affinity: 'sticky',
+    maxLoadFactor: 1.25,
+    targets: [
+      { provider: 'ollama', model: 'qwen3:32b' },
+      { provider: 'openrouter', model: 'qwen/qwen3-32b' },
+    ],
+    ...overrides,
+  });
+}
+
+/** The fixture pool's live load: three requests on the first target, none on the second. */
+export const POOL_LOAD: PoolLoad = poolLoadSchema.parse({
+  targets: [
+    { provider: 'ollama', model: 'qwen3:32b', inFlight: 3, available: true },
+    { provider: 'openrouter', model: 'qwen/qwen3-32b', inFlight: 0, available: true },
+  ],
+});
+
+/**
  * Builds the router's status.
  *
  * @param [overrides] - Any part of the status to replace.
@@ -186,7 +220,7 @@ export const RELOADED: ReloadResponse = reloadResponseSchema.parse({
 });
 
 /**
- * Builds the answers of a server with two providers and one workspace, for a story about a page.
+ * Builds the answers of a server with two providers, one workspace and one pool, for a story about a page.
  *
  * @returns The routes every page reads; spread it and replace a key to change one answer.
  */
@@ -202,6 +236,9 @@ export function appRoutes(): ApiRoutes {
     'GET /api/workspaces': [workspace()],
     'GET /api/workspaces/research': workspace(),
     'GET /api/workspaces/research/models': WORKSPACE_MODELS,
+    'GET /api/pools': [pool()],
+    'GET /api/pools/qwen3': pool(),
+    'GET /api/pools/qwen3/load': POOL_LOAD,
     'GET /api/usage': usage(),
   };
 }
