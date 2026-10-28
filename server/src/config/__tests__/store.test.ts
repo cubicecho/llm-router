@@ -102,7 +102,9 @@ describe('ConfigStore', () => {
     await expect(store.saveProvider(TEST_PROVIDER)).rejects.toThrow();
     expect(store.getProvider('echo')).toBeUndefined();
 
-    await expect(store.saveWorkspace({ name: 'Team', slug: 'team', enabled: true, members: {} })).rejects.toThrow();
+    await expect(
+      store.saveWorkspace({ name: 'Team', slug: 'team', enabled: true, members: {}, pools: [] }),
+    ).rejects.toThrow();
     expect(store.getWorkspace('team')).toBeUndefined();
   });
 

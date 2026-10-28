@@ -69,6 +69,68 @@ export const providerConfigSchema = z
 /** One provider's stored config. */
 export type ProviderConfig = z.infer<typeof providerConfigSchema>;
 
+/** A pool's name is the model id clients ask for and its file name; it never holds a slash, so it is never a provider's model id. */
+export const poolNameSchema = providerNameSchema;
+
+/** How a pool picks a target when no sticky key decides. */
+export const PoolStrategy = {
+  /** Each target in turn. */
+  RoundRobin: 'round-robin',
+  /** The target with the fewest requests in flight; ties go to the earliest listed. */
+  LeastBusy: 'least-busy',
+  /** Any target, at random. */
+  Random: 'random',
+} as const;
+/** How a pool picks a target when no sticky key decides. */
+export type PoolStrategy = (typeof PoolStrategy)[keyof typeof PoolStrategy];
+
+/** Whether a pool keeps requests that share a key on the same target. */
+export const PoolAffinity = {
+  /** Every request is placed by the strategy. */
+  None: 'none',
+  /** Requests that share a key go to the same target, so its prompt cache is reused. */
+  Sticky: 'sticky',
+} as const;
+/** Whether a pool keeps requests that share a key on the same target. */
+export type PoolAffinity = (typeof PoolAffinity)[keyof typeof PoolAffinity];
+
+/** The smallest bounded-load factor: below 1 no target could ever take a request. */
+export const MIN_LOAD_FACTOR = 1;
+
+/** One place a pool can send a request: a provider and the model's id at that provider. */
+export const poolTargetSchema = z
+  .object({
+    provider: providerNameSchema,
+    /** The model's id at the provider. */
+    model: z.string().min(1),
+  })
+  .loose();
+
+/** One place a pool can send a request. */
+export type PoolTarget = z.infer<typeof poolTargetSchema>;
+
+/** Shape of `pools/<name>.json`: one model id served by several targets. */
+export const poolConfigSchema = z
+  .object({
+    name: poolNameSchema,
+    displayName: z.string().optional(),
+    description: z.string().optional(),
+    /** Disable to drop the pool from every endpoint without deleting it. */
+    enabled: z.boolean().default(true),
+    strategy: z.enum(PoolStrategy).default(PoolStrategy.LeastBusy),
+    affinity: z.enum(PoolAffinity).default(PoolAffinity.Sticky),
+    /**
+     * Bounded load: a sticky request skips a target running more than this times the pool's average in-flight load.
+     * Left out, a sticky request always goes to its own target.
+     */
+    maxLoadFactor: z.number().min(MIN_LOAD_FACTOR).optional(),
+    targets: z.array(poolTargetSchema).default([]),
+  })
+  .loose();
+
+/** One pool's stored config. */
+export type PoolConfig = z.infer<typeof poolConfigSchema>;
+
 /** A provider's participation in a workspace. */
 export const workspaceMemberSchema = z
   .object({
@@ -91,6 +153,8 @@ export const workspaceConfigSchema = z
     description: z.string().optional(),
     /** Members keyed by provider name. Only listed providers are in the workspace. */
     members: z.record(z.string(), workspaceMemberSchema).default({}),
+    /** The names of the pools the workspace serves, whatever its members. */
+    pools: z.array(poolNameSchema).default([]),
   })
   .loose();
 

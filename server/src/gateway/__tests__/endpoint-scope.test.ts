@@ -36,6 +36,7 @@ describe('workspaceScope', () => {
       off: { enabled: true },
       gone: { enabled: true },
     },
+    pools: [],
   };
 
   it('holds the enabled members that name an enabled provider, each with its allowlist', () => {
