@@ -31,7 +31,9 @@ export const AddsAModelOfAProvider: Story = {
     await userEvent.click(await body.findByRole('option', { name: 'openrouter' }));
     await userEvent.click(await dialog.findByRole('combobox', { name: /Model/ }));
     await userEvent.click(await body.findByRole('option', { name: 'openai/gpt-5' }));
-    await userEvent.click(dialog.getByRole('button', { name: 'Add target' }));
+    // The choice has landed and the list has closed before the dialog is submitted.
+    await waitFor(() => expect(dialog.getByRole('combobox', { name: /Model/ })).toHaveTextContent('openai/gpt-5'));
+    await userEvent.click(await dialog.findByRole('button', { name: 'Add target' }));
 
     await waitFor(() =>
       expect(apiRequest).toHaveBeenCalledWith(UPDATE_ROUTE, {
