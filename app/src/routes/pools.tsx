@@ -8,7 +8,7 @@ import { PoolDialog } from '@/components/domain/pool/pool-dialog';
 import { poolSummary } from '@/components/domain/pool/pool-text';
 import { EmptyState } from '@/components/empty-state';
 import { PAGE_BODY_CLASS } from '@/components/layouts/page-body';
-import { RowList, RowListItem } from '@/components/layouts/row-list';
+import { List } from '@/components/list';
 import { ListItem } from '@/components/list-item';
 import { LoadState } from '@/components/load-state';
 import { PageLayout } from '@/components/page-layout';
@@ -58,30 +58,26 @@ function PoolsPage() {
               level={2}
               title="All pools"
               contentSlot={
-                <RowList
+                <List
                   contentSlot={data.map((pool) => (
-                    <RowListItem
+                    <ListItem
                       key={pool.name}
-                      contentSlot={
-                        <ListItem
-                          title={pool.name}
-                          titleClassName="font-mono"
-                          description={<span className="text-foreground/60 text-xs">{poolSummary(pool)}</span>}
-                          linkSlot={<Link to="/pools/$name" params={{ name: pool.name }} />}
-                          meta={<EnabledBadge enabled={pool.enabled} />}
-                          actionSlot={
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                aria-label={`Edit ${pool.name}`}
-                                onClick={() => dialog.openEdit(pool)}
-                                iconSlot={<Pencil />}
-                              />
-                              <DeletePoolButton pool={pool} />
-                            </>
-                          }
-                        />
+                      title={pool.name}
+                      titleClassName="font-mono"
+                      description={<span className="text-foreground/60 text-xs">{poolSummary(pool)}</span>}
+                      linkSlot={<Link to="/pools/$name" params={{ name: pool.name }} />}
+                      meta={<EnabledBadge enabled={pool.enabled} />}
+                      actionSlot={
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`Edit ${pool.name}`}
+                            onClick={() => dialog.openEdit(pool)}
+                            iconSlot={<Pencil />}
+                          />
+                          <DeletePoolButton pool={pool} />
+                        </>
                       }
                     />
                   ))}

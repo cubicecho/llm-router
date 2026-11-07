@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { CardLayout } from '@/components/card-layout';
 import { dayLabel } from '@/components/domain/usage/usage';
 import { EmptyState } from '@/components/empty-state';
-import { RowList, RowListItem } from '@/components/layouts/row-list';
+import { List } from '@/components/list';
 import { ListItem } from '@/components/list-item';
 import { LoadState } from '@/components/load-state';
 import { Section } from '@/components/section';
@@ -52,25 +52,21 @@ export function UsageCard({ scope }: UsageCardProps) {
           />
           {usage && (
             <>
-              <RowList
+              <List
                 label="Usage by model"
                 contentSlot={
                   <>
-                    <RowListItem
-                      contentSlot={
-                        <ListItem
-                          title="All models"
-                          titleClassName="font-medium"
-                          meta={<UsageText usage={usage.totals} />}
-                        />
-                      }
+                    <ListItem
+                      title="All models"
+                      titleClassName="font-medium"
+                      meta={<UsageText usage={usage.totals} />}
                     />
                     {usage.models.map((model) => (
-                      <RowListItem
+                      <ListItem
                         key={model.id}
-                        contentSlot={
-                          <ListItem title={model.id} titleClassName="font-mono" meta={<UsageText usage={model} />} />
-                        }
+                        title={model.id}
+                        titleClassName="font-mono"
+                        meta={<UsageText usage={model} />}
                       />
                     ))}
                   </>
@@ -81,13 +77,10 @@ export function UsageCard({ scope }: UsageCardProps) {
                   level={3}
                   title="By day"
                   contentSlot={
-                    <RowList
+                    <List
                       label="Usage by day"
                       contentSlot={shownDays.map((day) => (
-                        <RowListItem
-                          key={day.day}
-                          contentSlot={<ListItem title={dayLabel(day.day)} meta={<UsageText usage={day} />} />}
-                        />
+                        <ListItem key={day.day} title={dayLabel(day.day)} meta={<UsageText usage={day} />} />
                       ))}
                     />
                   }

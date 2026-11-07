@@ -1,7 +1,7 @@
 import type { ModelsResponse } from '@llm-router/shared';
 import { CardLayout } from '@/components/card-layout';
 import { EmptyState } from '@/components/empty-state';
-import { RowList, RowListItem } from '@/components/layouts/row-list';
+import { List } from '@/components/list';
 import { ListItem } from '@/components/list-item';
 import { LoadState } from '@/components/load-state';
 import { Alert } from '@/components/ui/alert';
@@ -59,22 +59,18 @@ export function ModelsCard({ query, title, description, actionSlot, emptyTitle }
           {models.length > 0 && (
             <>
               <p className="text-foreground/60 text-xs">{formatCount(models.length, 'model')}</p>
-              <RowList
+              <List
                 contentSlot={models.map((model) => (
-                  <RowListItem
+                  <ListItem
                     key={model.id}
-                    contentSlot={
-                      <ListItem
-                        title={model.id}
-                        titleClassName="font-mono"
-                        actionSlot={
-                          <CopyButton
-                            variant="ghost"
-                            value={model.id}
-                            label={`Copy ${model.id}`}
-                            onError={() => toast(COPY_FAILED_MESSAGE)}
-                          />
-                        }
+                    title={model.id}
+                    titleClassName="font-mono"
+                    actionSlot={
+                      <CopyButton
+                        variant="ghost"
+                        value={model.id}
+                        label={`Copy ${model.id}`}
+                        onError={() => toast(COPY_FAILED_MESSAGE)}
                       />
                     }
                   />
