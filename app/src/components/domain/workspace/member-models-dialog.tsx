@@ -1,9 +1,8 @@
 import type { ProviderStatus, WorkspaceStatus } from '@llm-router/shared';
-import { useAppForm } from '@/components/app-form';
+import { ComboboxField, useAppForm } from '@/components/app-form';
 import { DialogLayout } from '@/components/dialog-layout';
 import { providerLabel } from '@/components/domain/provider/provider-label';
 import { FormDialogFooter } from '@/components/layouts/form-dialog-footer';
-import { MultiSelectField } from '@/components/multi-select-field';
 import { Alert } from '@/components/ui/alert';
 import { FormElement } from '@/components/ui/form-element';
 import { unsavedChangesOf, useServerError } from '@/lib/form-dialog';
@@ -82,10 +81,11 @@ export function MemberModelsDialog({ open, onOpenChange, workspace, provider }: 
           {listingError && (
             <Alert variant="warning" title={`Could not list the models of ${label}`} description={listingError} />
           )}
-          <MultiSelectField
+          <ComboboxField
             form={form}
             name="models"
             label="Models"
+            multiple
             options={options}
             placeholder="Every model"
             searchPlaceholder="Search models…"

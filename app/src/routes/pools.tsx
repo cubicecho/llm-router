@@ -1,18 +1,17 @@
 import type { PoolStatus } from '@llm-router/shared';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { BoxesIcon } from 'lucide-react';
-import { ActionButton } from '@/components/action-button';
 import { CardLayout } from '@/components/card-layout';
 import { EnabledBadge } from '@/components/domain/enabled/enabled-badge';
 import { DeletePoolButton } from '@/components/domain/pool/delete-pool-button';
 import { PoolDialog } from '@/components/domain/pool/pool-dialog';
 import { poolSummary } from '@/components/domain/pool/pool-text';
+import { EmptyState } from '@/components/empty-state';
 import { PAGE_BODY_CLASS } from '@/components/layouts/page-body';
-import { RowList, RowListItem } from '@/components/layouts/row-list';
+import { List } from '@/components/list';
 import { ListItem } from '@/components/list-item';
-import { EmptyState } from '@/components/page';
+import { LoadState } from '@/components/load-state';
 import { PageLayout } from '@/components/page-layout';
-import { QueryState } from '@/components/query-state';
 import { Button } from '@/components/ui/button';
 import { Pencil, Plus } from '@/components/ui/icons';
 import { NEW_DIALOG_KEY, useEntityDialog } from '@/lib/entity-dialog';
@@ -40,13 +39,13 @@ function PoolsPage() {
       contentClassName={PAGE_BODY_CLASS}
       contentSlot={
         <>
-          <QueryState
+          <LoadState
             query={pools}
             what="pools"
             count={data?.length ?? 0}
             emptySlot={
               <EmptyState
-                icon={BoxesIcon}
+                iconSlot={<BoxesIcon />}
                 title="No pools yet"
                 description="Create a pool to spread one model over the servers that run it, keeping each conversation on the server that has it cached."
                 actionSlot={newButton}
@@ -59,30 +58,26 @@ function PoolsPage() {
               level={2}
               title="All pools"
               contentSlot={
-                <RowList
+                <List
                   contentSlot={data.map((pool) => (
-                    <RowListItem
+                    <ListItem
                       key={pool.name}
-                      contentSlot={
-                        <ListItem
-                          title={pool.name}
-                          titleClassName="font-mono"
-                          description={<span className="text-foreground/60 text-xs">{poolSummary(pool)}</span>}
-                          linkSlot={<Link to="/pools/$name" params={{ name: pool.name }} />}
-                          meta={<EnabledBadge enabled={pool.enabled} />}
-                          actionSlot={
-                            <>
-                              <ActionButton
-                                variant="ghost"
-                                size="icon-sm"
-                                label={`Edit ${pool.name}`}
-                                onClick={() => dialog.openEdit(pool)}
-                                iconSlot={<Pencil />}
-                              />
-                              <DeletePoolButton pool={pool} />
-                            </>
-                          }
-                        />
+                      title={pool.name}
+                      titleClassName="font-mono"
+                      description={<span className="text-foreground/60 text-xs">{poolSummary(pool)}</span>}
+                      linkSlot={<Link to="/pools/$name" params={{ name: pool.name }} />}
+                      meta={<EnabledBadge enabled={pool.enabled} />}
+                      actionSlot={
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`Edit ${pool.name}`}
+                            onClick={() => dialog.openEdit(pool)}
+                            iconSlot={<Pencil />}
+                          />
+                          <DeletePoolButton pool={pool} />
+                        </>
                       }
                     />
                   ))}

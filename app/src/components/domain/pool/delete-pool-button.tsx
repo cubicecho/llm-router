@@ -31,7 +31,7 @@ export function DeletePoolButton({ pool, isLabelled = false, onDeleted }: Delete
   };
 
   const confirmation = {
-    label: `Delete ${name}`,
+    'aria-label': `Delete ${name}`,
     title: `Delete pool ${name}?`,
     description: `Clients asking for "${name}" get model_not_found, and every workspace stops serving it. Its providers are not affected.`,
     onConfirm: handleConfirm,
@@ -39,16 +39,7 @@ export function DeletePoolButton({ pool, isLabelled = false, onDeleted }: Delete
   };
 
   if (isLabelled) {
-    return (
-      <ConfirmButton
-        {...confirmation}
-        variant="outline"
-        size="sm"
-        tooltip={false}
-        loading={remove.isPending}
-        content="Delete"
-      />
-    );
+    return <ConfirmButton {...confirmation} variant="outline" size="sm" loading={remove.isPending} content="Delete" />;
   }
   return <ConfirmButton {...confirmation} variant="ghost" size="icon-sm" />;
 }

@@ -1,7 +1,6 @@
 import { GLOBAL_ENDPOINT_PATH, type ProviderStatus } from '@llm-router/shared';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { ServerIcon } from 'lucide-react';
-import { ActionButton } from '@/components/action-button';
 import { CardLayout } from '@/components/card-layout';
 import { EnabledBadge } from '@/components/domain/enabled/enabled-badge';
 import { ConnectCard } from '@/components/domain/endpoint/connect-card';
@@ -10,12 +9,12 @@ import { ProviderDialog } from '@/components/domain/provider/provider-dialog';
 import { providerLabel } from '@/components/domain/provider/provider-label';
 import { ProviderModelCount } from '@/components/domain/provider/provider-model-count';
 import { ProviderUsageText } from '@/components/domain/provider/provider-usage-text';
+import { EmptyState } from '@/components/empty-state';
 import { PAGE_BODY_CLASS } from '@/components/layouts/page-body';
-import { RowList, RowListItem } from '@/components/layouts/row-list';
+import { List } from '@/components/list';
 import { ListItem } from '@/components/list-item';
-import { EmptyState } from '@/components/page';
+import { LoadState } from '@/components/load-state';
 import { PageLayout } from '@/components/page-layout';
-import { QueryState } from '@/components/query-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Pencil, Plus } from '@/components/ui/icons';
@@ -43,13 +42,13 @@ function ProvidersPage() {
       contentClassName={PAGE_BODY_CLASS}
       contentSlot={
         <>
-          <QueryState
+          <LoadState
             query={providers}
             what="providers"
             count={data?.length ?? 0}
             emptySlot={
               <EmptyState
-                icon={ServerIcon}
+                iconSlot={<ServerIcon />}
                 title="No providers yet"
                 description="Add an OpenAI-compatible server, such as Ollama, llama.cpp, OpenRouter or OpenAI, to serve its models."
                 actionSlot={<Button variant="info" onClick={openCreate} iconSlot={<Plus />} content="Add provider" />}
@@ -62,38 +61,34 @@ function ProvidersPage() {
               level={2}
               title="All providers"
               contentSlot={
-                <RowList
+                <List
                   contentSlot={data.map((provider) => {
                     const label = providerLabel(provider);
                     return (
-                      <RowListItem
+                      <ListItem
                         key={provider.name}
-                        contentSlot={
-                          <ListItem
-                            title={label}
-                            description={<span className="break-all font-mono text-xs">{provider.baseUrl}</span>}
-                            linkSlot={<Link to="/providers/$name" params={{ name: provider.name }} />}
-                            meta={
-                              <span className="flex flex-wrap items-center justify-end gap-1">
-                                <ProviderUsageText name={provider.name} />
-                                <ProviderModelCount provider={provider} />
-                                {provider.apiKeySet && <Badge variant="outline">key set</Badge>}
-                                <EnabledBadge enabled={provider.enabled} />
-                              </span>
-                            }
-                            actionSlot={
-                              <>
-                                <ActionButton
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  label={`Edit ${label}`}
-                                  onClick={() => dialog.openEdit(provider)}
-                                  iconSlot={<Pencil />}
-                                />
-                                <DeleteProviderButton provider={provider} />
-                              </>
-                            }
-                          />
+                        title={label}
+                        description={<span className="break-all font-mono text-xs">{provider.baseUrl}</span>}
+                        linkSlot={<Link to="/providers/$name" params={{ name: provider.name }} />}
+                        meta={
+                          <span className="flex flex-wrap items-center justify-end gap-1">
+                            <ProviderUsageText name={provider.name} />
+                            <ProviderModelCount provider={provider} />
+                            {provider.apiKeySet && <Badge variant="outline">key set</Badge>}
+                            <EnabledBadge enabled={provider.enabled} />
+                          </span>
+                        }
+                        actionSlot={
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`Edit ${label}`}
+                              onClick={() => dialog.openEdit(provider)}
+                              iconSlot={<Pencil />}
+                            />
+                            <DeleteProviderButton provider={provider} />
+                          </>
                         }
                       />
                     );

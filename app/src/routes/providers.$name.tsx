@@ -1,8 +1,6 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
-import { ActionButton } from '@/components/action-button';
 import { CardLayout } from '@/components/card-layout';
-import { DescriptionList, PropertyRow } from '@/components/description-list';
 import { EnabledSetting } from '@/components/domain/enabled/enabled-setting';
 import { ModelsCard } from '@/components/domain/model/models-card';
 import { DeleteProviderButton } from '@/components/domain/provider/delete-provider-button';
@@ -10,8 +8,9 @@ import { ProviderDialog } from '@/components/domain/provider/provider-dialog';
 import { providerLabel } from '@/components/domain/provider/provider-label';
 import { UsageCard } from '@/components/domain/usage/usage-card';
 import { PAGE_BODY_CLASS } from '@/components/layouts/page-body';
+import { LoadState } from '@/components/load-state';
 import { PageLayout } from '@/components/page-layout';
-import { QueryState } from '@/components/query-state';
+import { PropertyList, PropertyRow } from '@/components/property-list';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Pencil, RefreshCw } from '@/components/ui/icons';
@@ -40,12 +39,11 @@ function ProviderDetailPage() {
 
   return (
     <PageLayout
-      iconSlot={
-        <ActionButton
+      backSlot={
+        <Button
           variant="ghost"
           size="icon-sm"
-          label="Back to providers"
-          tooltip={false}
+          aria-label="Back to providers"
           linkSlot={<Link to="/" />}
           iconSlot={<ArrowLeft />}
         />
@@ -56,7 +54,14 @@ function ProviderDetailPage() {
       contentClassName={PAGE_BODY_CLASS}
       contentSlot={
         <>
-          <QueryState query={query} what="provider" count={provider ? 1 : 0} rows={1} />
+          <LoadState
+            query={query}
+            what="provider"
+            record={provider}
+            notFoundLabel="Provider not found"
+            level={2}
+            rows={1}
+          />
           {provider && (
             <>
               <CardLayout
@@ -77,7 +82,7 @@ function ProviderDetailPage() {
                 contentClassName="gap-4"
                 contentSlot={
                   <>
-                    <DescriptionList
+                    <PropertyList
                       contentSlot={
                         <>
                           <PropertyRow label="Name" value={provider.name} valueClassName="font-mono" />

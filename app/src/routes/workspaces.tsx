@@ -1,18 +1,17 @@
 import type { WorkspaceStatus } from '@llm-router/shared';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { LayersIcon } from 'lucide-react';
-import { ActionButton } from '@/components/action-button';
 import { CardLayout } from '@/components/card-layout';
 import { EnabledBadge } from '@/components/domain/enabled/enabled-badge';
 import { DeleteWorkspaceButton } from '@/components/domain/workspace/delete-workspace-button';
 import { WorkspaceDialog } from '@/components/domain/workspace/workspace-dialog';
 import { WorkspaceUsageText } from '@/components/domain/workspace/workspace-usage-text';
+import { EmptyState } from '@/components/empty-state';
 import { PAGE_BODY_CLASS } from '@/components/layouts/page-body';
-import { RowList, RowListItem } from '@/components/layouts/row-list';
+import { List } from '@/components/list';
 import { ListItem } from '@/components/list-item';
-import { EmptyState } from '@/components/page';
+import { LoadState } from '@/components/load-state';
 import { PageLayout } from '@/components/page-layout';
-import { QueryState } from '@/components/query-state';
 import { Button } from '@/components/ui/button';
 import { Pencil, Plus } from '@/components/ui/icons';
 import { NEW_DIALOG_KEY, useEntityDialog } from '@/lib/entity-dialog';
@@ -40,13 +39,13 @@ function WorkspacesPage() {
       contentClassName={PAGE_BODY_CLASS}
       contentSlot={
         <>
-          <QueryState
+          <LoadState
             query={workspaces}
             what="workspaces"
             count={data?.length ?? 0}
             emptySlot={
               <EmptyState
-                icon={LayersIcon}
+                iconSlot={<LayersIcon />}
                 title="No workspaces yet"
                 description="Create a workspace to give one client or team its own endpoint with only the models it should see."
                 actionSlot={<Button variant="info" onClick={openCreate} iconSlot={<Plus />} content="New workspace" />}
@@ -59,40 +58,36 @@ function WorkspacesPage() {
               level={2}
               title="All workspaces"
               contentSlot={
-                <RowList
+                <List
                   contentSlot={data.map((workspace) => {
                     const memberCount = Object.values(workspace.members).filter((member) => member.enabled).length;
                     return (
-                      <RowListItem
+                      <ListItem
                         key={workspace.slug}
-                        contentSlot={
-                          <ListItem
-                            title={workspace.name}
-                            description={
-                              <span className="text-foreground/60 text-xs">
-                                {joinStats(workspace.path, formatCount(memberCount, 'provider'))}
-                              </span>
-                            }
-                            linkSlot={<Link to="/workspaces/$slug" params={{ slug: workspace.slug }} />}
-                            meta={
-                              <span className="flex flex-wrap items-center justify-end gap-1">
-                                <WorkspaceUsageText slug={workspace.slug} />
-                                <EnabledBadge enabled={workspace.enabled} />
-                              </span>
-                            }
-                            actionSlot={
-                              <>
-                                <ActionButton
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  label={`Edit ${workspace.name}`}
-                                  onClick={() => dialog.openEdit(workspace)}
-                                  iconSlot={<Pencil />}
-                                />
-                                <DeleteWorkspaceButton workspace={workspace} />
-                              </>
-                            }
-                          />
+                        title={workspace.name}
+                        description={
+                          <span className="text-foreground/60 text-xs">
+                            {joinStats(workspace.path, formatCount(memberCount, 'provider'))}
+                          </span>
+                        }
+                        linkSlot={<Link to="/workspaces/$slug" params={{ slug: workspace.slug }} />}
+                        meta={
+                          <span className="flex flex-wrap items-center justify-end gap-1">
+                            <WorkspaceUsageText slug={workspace.slug} />
+                            <EnabledBadge enabled={workspace.enabled} />
+                          </span>
+                        }
+                        actionSlot={
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`Edit ${workspace.name}`}
+                              onClick={() => dialog.openEdit(workspace)}
+                              iconSlot={<Pencil />}
+                            />
+                            <DeleteWorkspaceButton workspace={workspace} />
+                          </>
                         }
                       />
                     );

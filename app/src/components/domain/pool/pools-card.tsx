@@ -2,8 +2,8 @@ import type { WorkspaceStatus } from '@llm-router/shared';
 import { Link } from '@tanstack/react-router';
 import { CardLayout } from '@/components/card-layout';
 import { EnabledBadge } from '@/components/domain/enabled/enabled-badge';
-import { EmptyState } from '@/components/page';
-import { QueryState } from '@/components/query-state';
+import { EmptyState } from '@/components/empty-state';
+import { LoadState } from '@/components/load-state';
 import { SettingRow } from '@/components/setting-row';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -38,7 +38,7 @@ export function PoolsCard({ workspace }: PoolsCardProps) {
       contentClassName="gap-4"
       contentSlot={
         <>
-          <QueryState
+          <LoadState
             query={pools}
             what="pools"
             count={pools.data?.length ?? 0}

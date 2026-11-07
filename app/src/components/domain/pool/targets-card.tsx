@@ -3,9 +3,9 @@ import { useState } from 'react';
 import { CardLayout } from '@/components/card-layout';
 import { ConfirmButton } from '@/components/confirm-button';
 import { EnabledBadge } from '@/components/domain/enabled/enabled-badge';
-import { RowList, RowListItem } from '@/components/layouts/row-list';
+import { EmptyState } from '@/components/empty-state';
+import { List } from '@/components/list';
 import { ListItem } from '@/components/list-item';
-import { EmptyState } from '@/components/page';
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2 } from '@/components/ui/icons';
 import { formatCount } from '@/lib/format';
@@ -70,7 +70,7 @@ export function TargetsCard({ pool }: TargetsCardProps) {
       contentSlot={
         <>
           {hasTargets ? (
-            <RowList
+            <List
               label="Targets"
               contentSlot={pool.targets.map((target, index) => {
                 const id = `${target.provider}/${target.model}`;
@@ -78,28 +78,24 @@ export function TargetsCard({ pool }: TargetsCardProps) {
                 const targetLoad = load.data?.targets[index];
                 const isSkipped = targetLoad?.available === false;
                 return (
-                  <RowListItem
+                  <ListItem
                     // biome-ignore lint/suspicious/noArrayIndexKey: a pool may list one target twice, to weight it.
                     key={`${id}#${index}`}
-                    contentSlot={
-                      <ListItem
-                        title={id}
-                        titleClassName="font-mono"
-                        description={<span className="text-foreground/60 text-xs">{loadText(targetLoad)}</span>}
-                        meta={isSkipped && <EnabledBadge enabled={false} />}
-                        actionSlot={
-                          <ConfirmButton
-                            variant="ghost"
-                            size="icon-sm"
-                            label={`Remove ${id}`}
-                            title={`Remove ${id} from ${pool.name}?`}
-                            description="The pool stops sending requests to it. Requests already sent finish."
-                            confirmLabel="Remove"
-                            disabled={update.isPending}
-                            onConfirm={() => removeTarget(index)}
-                            iconSlot={<Trash2 className="text-negative" />}
-                          />
-                        }
+                    title={id}
+                    titleClassName="font-mono"
+                    description={<span className="text-foreground/60 text-xs">{loadText(targetLoad)}</span>}
+                    meta={isSkipped && <EnabledBadge enabled={false} />}
+                    actionSlot={
+                      <ConfirmButton
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`Remove ${id}`}
+                        title={`Remove ${id} from ${pool.name}?`}
+                        description="The pool stops sending requests to it. Requests already sent finish."
+                        confirmLabel="Remove"
+                        disabled={update.isPending}
+                        onConfirm={() => removeTarget(index)}
+                        iconSlot={<Trash2 className="text-negative" />}
                       />
                     }
                   />
