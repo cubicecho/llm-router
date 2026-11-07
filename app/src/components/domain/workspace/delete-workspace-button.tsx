@@ -31,7 +31,7 @@ export function DeleteWorkspaceButton({ workspace, isLabelled = false, onDeleted
   };
 
   const confirmation = {
-    label: `Delete ${label}`,
+    'aria-label': `Delete ${label}`,
     title: `Delete workspace ${label}?`,
     description: `The workspace's endpoint (${workspace.path}) stops responding. Its providers are not affected.`,
     onConfirm: handleConfirm,
@@ -39,16 +39,7 @@ export function DeleteWorkspaceButton({ workspace, isLabelled = false, onDeleted
   };
 
   if (isLabelled) {
-    return (
-      <ConfirmButton
-        {...confirmation}
-        variant="outline"
-        size="sm"
-        tooltip={false}
-        loading={remove.isPending}
-        content="Delete"
-      />
-    );
+    return <ConfirmButton {...confirmation} variant="outline" size="sm" loading={remove.isPending} content="Delete" />;
   }
   return <ConfirmButton {...confirmation} variant="ghost" size="icon-sm" />;
 }

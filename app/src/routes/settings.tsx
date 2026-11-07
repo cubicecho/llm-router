@@ -3,10 +3,10 @@ import { createFileRoute } from '@tanstack/react-router';
 import { NumberField, SwitchField, TextareaField, useAppForm } from '@/components/app-form';
 import { CardLayout } from '@/components/card-layout';
 import { ConfirmButton } from '@/components/confirm-button';
-import { DescriptionList, PropertyRow } from '@/components/description-list';
 import { PAGE_BODY_CLASS } from '@/components/layouts/page-body';
+import { LoadState } from '@/components/load-state';
 import { PageLayout } from '@/components/page-layout';
-import { QueryState } from '@/components/query-state';
+import { PropertyList, PropertyRow } from '@/components/property-list';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Code, CodeBlock } from '@/components/ui/code';
@@ -152,9 +152,9 @@ function SettingsPage() {
             title="Router"
             contentSlot={
               <>
-                <QueryState query={status} what="status" count={data ? 1 : 0} rows={5} />
+                <LoadState query={status} what="status" count={data ? 1 : 0} rows={5} />
                 {data && (
-                  <DescriptionList
+                  <PropertyList
                     contentSlot={
                       <>
                         <PropertyRow label="Version" value={data.version} />
@@ -191,7 +191,7 @@ function SettingsPage() {
             title="Configuration"
             contentSlot={
               <>
-                <QueryState query={settings} what="settings" count={settings.data ? 1 : 0} rows={3} />
+                <LoadState query={settings} what="settings" count={settings.data ? 1 : 0} rows={3} />
                 {settings.data && <SettingsForm key={JSON.stringify(settings.data)} settings={settings.data} />}
               </>
             }
@@ -240,8 +240,6 @@ function SettingsPage() {
               <div>
                 <ConfirmButton
                   variant="outline"
-                  label="Reset usage"
-                  tooltip={false}
                   loading={resetUsage.isPending}
                   loadingLabel="Resetting…"
                   title="Reset the usage counts?"

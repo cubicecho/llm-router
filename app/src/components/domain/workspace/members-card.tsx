@@ -4,8 +4,8 @@ import { CardLayout } from '@/components/card-layout';
 import { EnabledBadge } from '@/components/domain/enabled/enabled-badge';
 import { providerLabel } from '@/components/domain/provider/provider-label';
 import { MemberModelsDialog } from '@/components/domain/workspace/member-models-dialog';
-import { EmptyState } from '@/components/page';
-import { QueryState } from '@/components/query-state';
+import { EmptyState } from '@/components/empty-state';
+import { LoadState } from '@/components/load-state';
 import { SettingRow } from '@/components/setting-row';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -64,7 +64,7 @@ export function MembersCard({ workspace }: MembersCardProps) {
       contentClassName="gap-4"
       contentSlot={
         <>
-          <QueryState
+          <LoadState
             query={providers}
             what="providers"
             count={providers.data?.length ?? 0}

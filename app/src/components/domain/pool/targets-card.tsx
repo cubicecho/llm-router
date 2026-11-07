@@ -3,9 +3,9 @@ import { useState } from 'react';
 import { CardLayout } from '@/components/card-layout';
 import { ConfirmButton } from '@/components/confirm-button';
 import { EnabledBadge } from '@/components/domain/enabled/enabled-badge';
+import { EmptyState } from '@/components/empty-state';
 import { RowList, RowListItem } from '@/components/layouts/row-list';
 import { ListItem } from '@/components/list-item';
-import { EmptyState } from '@/components/page';
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2 } from '@/components/ui/icons';
 import { formatCount } from '@/lib/format';
@@ -91,7 +91,7 @@ export function TargetsCard({ pool }: TargetsCardProps) {
                           <ConfirmButton
                             variant="ghost"
                             size="icon-sm"
-                            label={`Remove ${id}`}
+                            aria-label={`Remove ${id}`}
                             title={`Remove ${id} from ${pool.name}?`}
                             description="The pool stops sending requests to it. Requests already sent finish."
                             confirmLabel="Remove"

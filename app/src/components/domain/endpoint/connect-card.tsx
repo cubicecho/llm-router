@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { CardLayout } from '@/components/card-layout';
-import { DescriptionList, PropertyRow } from '@/components/description-list';
 import {
   curlSnippet,
   envSnippet,
@@ -8,6 +7,7 @@ import {
   type SnippetInput,
 } from '@/components/domain/endpoint/connect-snippets';
 import { endpointUrl } from '@/components/domain/endpoint/endpoint';
+import { PropertyList, PropertyRow } from '@/components/property-list';
 import { Section } from '@/components/section';
 import { Button } from '@/components/ui/button';
 import { CodeBlock } from '@/components/ui/code';
@@ -81,7 +81,7 @@ export function ConnectCard({ path, model = MODEL_PLACEHOLDER, description }: Co
       contentClassName="gap-4"
       contentSlot={
         <>
-          <DescriptionList
+          <PropertyList
             contentSlot={
               <PropertyRow
                 label="Base URL"

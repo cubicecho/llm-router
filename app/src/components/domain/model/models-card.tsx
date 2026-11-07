@@ -1,9 +1,9 @@
 import type { ModelsResponse } from '@llm-router/shared';
 import { CardLayout } from '@/components/card-layout';
+import { EmptyState } from '@/components/empty-state';
 import { RowList, RowListItem } from '@/components/layouts/row-list';
 import { ListItem } from '@/components/list-item';
-import { EmptyState } from '@/components/page';
-import { QueryState } from '@/components/query-state';
+import { LoadState } from '@/components/load-state';
 import { Alert } from '@/components/ui/alert';
 import { CopyButton } from '@/components/ui/copy-button';
 import { useToast } from '@/components/ui/toast';
@@ -46,7 +46,7 @@ export function ModelsCard({ query, title, description, actionSlot, emptyTitle }
       contentClassName="gap-3"
       contentSlot={
         <>
-          <QueryState
+          <LoadState
             query={query}
             what="models"
             // A skipped provider is something to read, so the card is not empty while there is one.

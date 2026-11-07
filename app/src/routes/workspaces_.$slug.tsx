@@ -1,6 +1,5 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
-import { ActionButton } from '@/components/action-button';
 import { CardLayout } from '@/components/card-layout';
 import { EnabledSetting } from '@/components/domain/enabled/enabled-setting';
 import { ConnectCard } from '@/components/domain/endpoint/connect-card';
@@ -11,8 +10,8 @@ import { DeleteWorkspaceButton } from '@/components/domain/workspace/delete-work
 import { MembersCard } from '@/components/domain/workspace/members-card';
 import { WorkspaceDialog } from '@/components/domain/workspace/workspace-dialog';
 import { PAGE_BODY_CLASS } from '@/components/layouts/page-body';
+import { LoadState } from '@/components/load-state';
 import { PageLayout } from '@/components/page-layout';
-import { QueryState } from '@/components/query-state';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Pencil } from '@/components/ui/icons';
 import { useUpdateWorkspace, useWorkspace, useWorkspaceModels } from '@/lib/queries';
@@ -37,12 +36,11 @@ function WorkspaceDetailPage() {
 
   return (
     <PageLayout
-      iconSlot={
-        <ActionButton
+      backSlot={
+        <Button
           variant="ghost"
           size="icon-sm"
-          label="Back to workspaces"
-          tooltip={false}
+          aria-label="Back to workspaces"
           linkSlot={<Link to="/workspaces" />}
           iconSlot={<ArrowLeft />}
         />
@@ -53,7 +51,14 @@ function WorkspaceDetailPage() {
       contentClassName={PAGE_BODY_CLASS}
       contentSlot={
         <>
-          <QueryState query={query} what="workspace" count={workspace ? 1 : 0} rows={1} />
+          <LoadState
+            query={query}
+            what="workspace"
+            record={workspace}
+            notFoundLabel="Workspace not found"
+            level={2}
+            rows={1}
+          />
           {workspace && (
             <>
               <CardLayout

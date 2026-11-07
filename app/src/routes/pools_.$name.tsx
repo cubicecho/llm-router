@@ -1,9 +1,7 @@
 import { GLOBAL_ENDPOINT_PATH, PoolAffinity } from '@llm-router/shared';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
-import { ActionButton } from '@/components/action-button';
 import { CardLayout } from '@/components/card-layout';
-import { DescriptionList, PropertyRow } from '@/components/description-list';
 import { EnabledSetting } from '@/components/domain/enabled/enabled-setting';
 import { ConnectCard } from '@/components/domain/endpoint/connect-card';
 import { DeletePoolButton } from '@/components/domain/pool/delete-pool-button';
@@ -11,8 +9,9 @@ import { PoolDialog } from '@/components/domain/pool/pool-dialog';
 import { AFFINITY_TEXT, boundedLoadText, STRATEGY_TEXT } from '@/components/domain/pool/pool-text';
 import { TargetsCard } from '@/components/domain/pool/targets-card';
 import { PAGE_BODY_CLASS } from '@/components/layouts/page-body';
+import { LoadState } from '@/components/load-state';
 import { PageLayout } from '@/components/page-layout';
-import { QueryState } from '@/components/query-state';
+import { PropertyList, PropertyRow } from '@/components/property-list';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Pencil } from '@/components/ui/icons';
 import { usePool, useUpdatePool } from '@/lib/queries';
@@ -36,12 +35,11 @@ function PoolDetailPage() {
 
   return (
     <PageLayout
-      iconSlot={
-        <ActionButton
+      backSlot={
+        <Button
           variant="ghost"
           size="icon-sm"
-          label="Back to pools"
-          tooltip={false}
+          aria-label="Back to pools"
           linkSlot={<Link to="/pools" />}
           iconSlot={<ArrowLeft />}
         />
@@ -52,7 +50,7 @@ function PoolDetailPage() {
       contentClassName={PAGE_BODY_CLASS}
       contentSlot={
         <>
-          <QueryState query={query} what="pool" count={pool ? 1 : 0} rows={1} />
+          <LoadState query={query} what="pool" record={pool} notFoundLabel="Pool not found" level={2} rows={1} />
           {pool && (
             <>
               <CardLayout
@@ -87,7 +85,7 @@ function PoolDetailPage() {
                         )
                       }
                     />
-                    <DescriptionList
+                    <PropertyList
                       contentSlot={
                         <>
                           <PropertyRow

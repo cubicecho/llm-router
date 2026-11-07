@@ -122,11 +122,15 @@
         "app/src/components/ui/**",
         "app/src/components/*.tsx",
         "app/cubeui-*.css",
+        "app/src/lib/bottom-bar.ts",
         "app/src/lib/color.ts",
         "app/src/lib/error-message.ts",
         "app/src/lib/form-binding.ts",
         "app/src/lib/format.ts",
+        "app/src/lib/frame-focus-guard.ts",
+        "app/src/lib/number-draft.ts",
         "app/src/lib/readable-text-color.ts",
+        "app/src/lib/select-options.ts",
         "app/src/lib/utils.ts"
       ],
       "linter": {

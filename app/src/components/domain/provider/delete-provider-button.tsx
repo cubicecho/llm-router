@@ -32,7 +32,7 @@ export function DeleteProviderButton({ provider, isLabelled = false, onDeleted }
   };
 
   const confirmation = {
-    label: `Delete ${label}`,
+    'aria-label': `Delete ${label}`,
     title: `Delete provider ${label}?`,
     description: `Its models (${provider.name}/…) stop being served, and it is removed from every workspace. The server itself is not affected.`,
     onConfirm: handleConfirm,
@@ -40,16 +40,7 @@ export function DeleteProviderButton({ provider, isLabelled = false, onDeleted }
   };
 
   if (isLabelled) {
-    return (
-      <ConfirmButton
-        {...confirmation}
-        variant="outline"
-        size="sm"
-        tooltip={false}
-        loading={remove.isPending}
-        content="Delete"
-      />
-    );
+    return <ConfirmButton {...confirmation} variant="outline" size="sm" loading={remove.isPending} content="Delete" />;
   }
   return <ConfirmButton {...confirmation} variant="ghost" size="icon-sm" />;
 }
