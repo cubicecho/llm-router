@@ -1,11 +1,11 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { createLink, createRootRoute, Outlet, useLocation } from '@tanstack/react-router';
-import { BoxesIcon, LayersIcon, ServerIcon } from 'lucide-react';
+import { BoxesIcon } from 'lucide-react';
 import { TokenForm } from '@/components/domain/auth/token-form';
 import { AppLayout } from '@/components/layouts/app-layout';
 import { AppBarItem, SidebarItem } from '@/components/sidebar';
 import { Button } from '@/components/ui/button';
-import { Lock, Settings } from '@/components/ui/icons';
+import { Layers, Lock, Server, Settings } from '@/components/ui/icons';
 import { useThemePreference } from '@/components/ui/theme-preference';
 import { ToastProvider } from '@/components/ui/toast';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -20,8 +20,8 @@ export const Route = createRootRoute({
 
 /** The places of the app, in the order the navigation lists them. */
 const NAV_ITEMS = [
-  { to: '/', label: 'Providers', icon: ServerIcon },
-  { to: '/workspaces', label: 'Workspaces', icon: LayersIcon },
+  { to: '/', label: 'Providers', icon: Server },
+  { to: '/workspaces', label: 'Workspaces', icon: Layers },
   { to: '/pools', label: 'Pools', icon: BoxesIcon },
   { to: '/settings', label: 'Settings', icon: Settings },
 ] as const;

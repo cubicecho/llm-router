@@ -50,7 +50,15 @@ function PoolDetailPage() {
       contentClassName={PAGE_BODY_CLASS}
       contentSlot={
         <>
-          <LoadState query={query} what="pool" record={pool} notFoundLabel="Pool not found" level={2} rows={1} />
+          <LoadState
+            query={query}
+            what="pool"
+            record={pool}
+            notFoundLabel="Pool not found"
+            description="It may have been deleted, or the link is old."
+            actionSlot={<Button variant="outline" content="Back to pools" linkSlot={<Link to="/pools" />} />}
+            level={2}
+          />
           {pool && (
             <>
               <CardLayout
@@ -68,7 +76,6 @@ function PoolDetailPage() {
                     <DeletePoolButton pool={pool} isLabelled onDeleted={() => navigate({ to: '/pools' })} />
                   </span>
                 }
-                contentClassName="gap-4"
                 contentSlot={
                   <>
                     <EnabledSetting

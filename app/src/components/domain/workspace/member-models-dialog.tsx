@@ -70,7 +70,7 @@ export function MemberModelsDialog({ open, onOpenChange, workspace, provider }: 
           onCancel={close}
           submitSlot={
             <form.AppForm>
-              <form.SubmitButton form={FORM_ID} content="Save models" />
+              <form.SubmitButton variant="default" form={FORM_ID} createLabel="Save models" />
             </form.AppForm>
           }
         />

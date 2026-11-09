@@ -61,7 +61,6 @@ export function MembersCard({ workspace }: MembersCardProps) {
       level={2}
       title="Providers"
       description="The providers whose models this workspace serves."
-      contentClassName="gap-4"
       contentSlot={
         <>
           <LoadState

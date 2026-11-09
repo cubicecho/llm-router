@@ -114,7 +114,7 @@ export function PoolDialog({ open, onOpenChange, pool }: PoolDialogProps) {
           onCancel={close}
           submitSlot={
             <form.AppForm>
-              <form.SubmitButton form={FORM_ID} content={isEdit ? 'Save changes' : 'Create pool'} />
+              <form.SubmitButton variant="default" form={FORM_ID} isEdit={isEdit} createLabel="Create pool" />
             </form.AppForm>
           }
         />

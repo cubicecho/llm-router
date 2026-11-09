@@ -56,8 +56,9 @@ function WorkspaceDetailPage() {
             what="workspace"
             record={workspace}
             notFoundLabel="Workspace not found"
+            description="It may have been deleted, or the link is old."
+            actionSlot={<Button variant="outline" content="Back to workspaces" linkSlot={<Link to="/workspaces" />} />}
             level={2}
-            rows={1}
           />
           {workspace && (
             <>

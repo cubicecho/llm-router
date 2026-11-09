@@ -46,7 +46,8 @@ export const WhileLoading: Story = {
   parameters: { api: { ...appRoutes(), [POOL_ROUTE]: pending() } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(await canvas.findByRole('status', { name: 'Loading' })).toBeVisible();
+    // The title's bar is the only loading state: the body draws no placeholder rows under it.
+    await expect(await canvas.findByRole('heading', { level: 1, name: 'Loading…' })).toBeInTheDocument();
     await expect(canvas.getByRole('link', { name: 'Back to pools' })).toBeVisible();
   },
 };

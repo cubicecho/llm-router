@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { CardLayout } from '@/components/card-layout';
 import { dayLabel } from '@/components/domain/usage/usage';
-import { EmptyState } from '@/components/empty-state';
 import { List } from '@/components/list';
 import { ListItem } from '@/components/list-item';
 import { LoadState } from '@/components/load-state';
@@ -46,9 +45,11 @@ export function UsageCard({ scope }: UsageCardProps) {
           <LoadState
             query={query}
             what="usage"
-            count={usage ? 1 : 0}
+            record={usage}
+            notFoundLabel="No requests yet."
+            level={3}
+            compact
             rows={1}
-            emptySlot={<EmptyState compact title="No requests yet." />}
           />
           {usage && (
             <>

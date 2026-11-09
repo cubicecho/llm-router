@@ -35,7 +35,6 @@ export function PoolsCard({ workspace }: PoolsCardProps) {
       level={2}
       title="Pools"
       description="The pools this workspace serves, each asked for by its name. A pool brings its own targets."
-      contentClassName="gap-4"
       contentSlot={
         <>
           <LoadState

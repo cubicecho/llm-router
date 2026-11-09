@@ -1,6 +1,5 @@
 import { GLOBAL_ENDPOINT_PATH, type ProviderStatus } from '@llm-router/shared';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { ServerIcon } from 'lucide-react';
 import { CardLayout } from '@/components/card-layout';
 import { EnabledBadge } from '@/components/domain/enabled/enabled-badge';
 import { ConnectCard } from '@/components/domain/endpoint/connect-card';
@@ -17,7 +16,7 @@ import { LoadState } from '@/components/load-state';
 import { PageLayout } from '@/components/page-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Pencil, Plus } from '@/components/ui/icons';
+import { Pencil, Plus, Server } from '@/components/ui/icons';
 import { NEW_DIALOG_KEY, useEntityDialog } from '@/lib/entity-dialog';
 import { useProviders } from '@/lib/queries';
 
@@ -48,7 +47,7 @@ function ProvidersPage() {
             count={data?.length ?? 0}
             emptySlot={
               <EmptyState
-                iconSlot={<ServerIcon />}
+                iconSlot={<Server />}
                 title="No providers yet"
                 description="Add an OpenAI-compatible server, such as Ollama, llama.cpp, OpenRouter or OpenAI, to serve its models."
                 actionSlot={<Button variant="info" onClick={openCreate} iconSlot={<Plus />} content="Add provider" />}

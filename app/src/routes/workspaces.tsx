@@ -1,6 +1,5 @@
 import type { WorkspaceStatus } from '@llm-router/shared';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { LayersIcon } from 'lucide-react';
 import { CardLayout } from '@/components/card-layout';
 import { EnabledBadge } from '@/components/domain/enabled/enabled-badge';
 import { DeleteWorkspaceButton } from '@/components/domain/workspace/delete-workspace-button';
@@ -13,7 +12,7 @@ import { ListItem } from '@/components/list-item';
 import { LoadState } from '@/components/load-state';
 import { PageLayout } from '@/components/page-layout';
 import { Button } from '@/components/ui/button';
-import { Pencil, Plus } from '@/components/ui/icons';
+import { Layers, Pencil, Plus } from '@/components/ui/icons';
 import { NEW_DIALOG_KEY, useEntityDialog } from '@/lib/entity-dialog';
 import { formatCount, joinStats } from '@/lib/format';
 import { useWorkspaces } from '@/lib/queries';
@@ -45,7 +44,7 @@ function WorkspacesPage() {
             count={data?.length ?? 0}
             emptySlot={
               <EmptyState
-                iconSlot={<LayersIcon />}
+                iconSlot={<Layers />}
                 title="No workspaces yet"
                 description="Create a workspace to give one client or team its own endpoint with only the models it should see."
                 actionSlot={<Button variant="info" onClick={openCreate} iconSlot={<Plus />} content="New workspace" />}
