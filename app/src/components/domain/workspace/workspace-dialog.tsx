@@ -81,7 +81,7 @@ export function WorkspaceDialog({ open, onOpenChange, workspace, onSaved }: Work
           onCancel={close}
           submitSlot={
             <form.AppForm>
-              <form.SubmitButton form={FORM_ID} content={isEdit ? 'Save changes' : 'Create workspace'} />
+              <form.SubmitButton variant="default" form={FORM_ID} isEdit={isEdit} createLabel="Create workspace" />
             </form.AppForm>
           }
         />

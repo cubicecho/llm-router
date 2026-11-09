@@ -92,7 +92,7 @@ export function ProviderDialog({ open, onOpenChange, provider }: ProviderDialogP
           onCancel={close}
           submitSlot={
             <form.AppForm>
-              <form.SubmitButton form={FORM_ID} content={isEdit ? 'Save changes' : 'Add provider'} />
+              <form.SubmitButton variant="default" form={FORM_ID} isEdit={isEdit} createLabel="Add provider" />
             </form.AppForm>
           }
         />

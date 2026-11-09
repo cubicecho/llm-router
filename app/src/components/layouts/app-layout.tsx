@@ -1,6 +1,6 @@
-import { RouteIcon } from 'lucide-react';
 import { Sidebar, SidebarSection } from '@/components/sidebar';
 import { SidebarLayout } from '@/components/split-layout';
+import { Route } from '@/components/ui/icons';
 import { ThemePicker } from '@/components/ui/theme-picker';
 import type { SlotNode } from '@/lib/utils';
 
@@ -8,7 +8,7 @@ import type { SlotNode } from '@/lib/utils';
 function Brand() {
   return (
     <span className="flex items-center gap-2 font-semibold">
-      <RouteIcon className="size-5" aria-hidden />
+      <Route className="size-5" aria-hidden />
       LLM Router
     </span>
   );
@@ -61,7 +61,7 @@ export function AppLayout({ sidebarNavSlot, barNavSlot, status, actionSlot, cont
           }
         />
       }
-      brandSlot={<RouteIcon className="size-5" aria-label="LLM Router" />}
+      brandSlot={<Route className="size-5" aria-label="LLM Router" />}
       navSlot={barNavSlot}
       navLabel="Main"
       status={status}

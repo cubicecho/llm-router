@@ -82,7 +82,7 @@ export function AddTargetDialog({ open, onOpenChange, pool }: AddTargetDialogPro
           onCancel={close}
           submitSlot={
             <form.AppForm>
-              <form.SubmitButton form={FORM_ID} content="Add target" />
+              <form.SubmitButton variant="default" form={FORM_ID} createLabel="Add target" />
             </form.AppForm>
           }
         />

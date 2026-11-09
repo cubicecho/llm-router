@@ -25,7 +25,8 @@ export const AWorkspaceThatWasNeverCalledShowsNothing: Story = {
   args: { slug: 'support' },
   play: async ({ canvasElement }) => {
     await waitFor(() => expect(apiRequest).toHaveBeenCalledWith(USAGE_ROUTE, undefined));
-    await expect(canvasElement).toBeEmptyDOMElement();
+    // The toast stack stays in the page while it is empty, so it is the only thing drawn.
+    await expect(canvasElement.querySelectorAll(':scope > :not([data-slot="toast-viewport"])')).toHaveLength(0);
   },
 };
 
@@ -35,6 +36,7 @@ export const ShowsNothingWhenTheCountsCannotBeRead: Story = {
   },
   play: async ({ canvasElement }) => {
     await waitFor(() => expect(apiRequest).toHaveBeenCalledWith(USAGE_ROUTE, undefined));
-    await expect(canvasElement).toBeEmptyDOMElement();
+    // The toast stack stays in the page while it is empty, so it is the only thing drawn.
+    await expect(canvasElement.querySelectorAll(':scope > :not([data-slot="toast-viewport"])')).toHaveLength(0);
   },
 };

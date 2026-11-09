@@ -60,7 +60,8 @@ export const WhenTheRouterFails: Story = {
 export const ADisabledProviderIsNotAsked: Story = {
   args: { provider: localProvider({ enabled: false }) },
   play: async ({ canvasElement }) => {
-    await expect(canvasElement).toBeEmptyDOMElement();
+    // The toast stack stays in the page while it is empty, so it is the only thing drawn.
+    await expect(canvasElement.querySelectorAll(':scope > :not([data-slot="toast-viewport"])')).toHaveLength(0);
     await expect(apiRequest).not.toHaveBeenCalledWith(MODELS_ROUTE, undefined);
   },
 };

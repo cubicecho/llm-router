@@ -59,8 +59,9 @@ function ProviderDetailPage() {
             what="provider"
             record={provider}
             notFoundLabel="Provider not found"
+            description="It may have been deleted, or the link is old."
+            actionSlot={<Button variant="outline" content="Back to providers" linkSlot={<Link to="/" />} />}
             level={2}
-            rows={1}
           />
           {provider && (
             <>
@@ -79,7 +80,6 @@ function ProviderDetailPage() {
                     <DeleteProviderButton provider={provider} isLabelled onDeleted={() => navigate({ to: '/' })} />
                   </span>
                 }
-                contentClassName="gap-4"
                 contentSlot={
                   <>
                     <PropertyList

@@ -102,7 +102,7 @@ function SettingsForm({ settings }: SettingsFormProps) {
       />
       <div>
         <form.AppForm>
-          <form.SubmitButton content="Save settings" />
+          <form.SubmitButton variant="default" createLabel="Save settings" />
         </form.AppForm>
       </div>
     </FormElement>
@@ -152,7 +152,7 @@ function SettingsPage() {
             title="Router"
             contentSlot={
               <>
-                <LoadState query={status} what="status" count={data ? 1 : 0} rows={5} />
+                <LoadState query={status} what="status" record={data} notFoundLabel="No status" level={3} rows={5} />
                 {data && (
                   <PropertyList
                     contentSlot={
@@ -191,7 +191,14 @@ function SettingsPage() {
             title="Configuration"
             contentSlot={
               <>
-                <LoadState query={settings} what="settings" count={settings.data ? 1 : 0} rows={3} />
+                <LoadState
+                  query={settings}
+                  what="settings"
+                  record={settings.data}
+                  notFoundLabel="No settings"
+                  level={3}
+                  rows={3}
+                />
                 {settings.data && <SettingsForm key={JSON.stringify(settings.data)} settings={settings.data} />}
               </>
             }

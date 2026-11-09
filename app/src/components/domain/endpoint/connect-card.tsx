@@ -78,7 +78,6 @@ export function ConnectCard({ path, model = MODEL_PLACEHOLDER, description }: Co
           />
         )
       }
-      contentClassName="gap-4"
       contentSlot={
         <>
           <PropertyList
