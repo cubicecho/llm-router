@@ -39,6 +39,43 @@ const STREAM_USAGE_PATHS = new Set(['chat/completions', 'completions']);
 /** The content type of a server-sent event stream. */
 const EVENT_STREAM_TYPE = 'text/event-stream';
 
+/** What a provider's refusal names when it is `stream_options.include_usage` it will not take. */
+const REFUSES_STREAM_USAGE = /stream_options|include_usage/i;
+
+/** The lowest and highest status of a refusal of the request itself. */
+const CLIENT_ERROR_STATUSES = { lowest: 400, highest: 499 } as const;
+
+/**
+ * The providers that refused `stream_options.include_usage`, so the router stops adding it for them.
+ *
+ * @remarks
+ * Kept in memory, per provider name and base URL: a provider moved to another URL may be another server, and is asked
+ * again. A restart forgets them, and each costs one refused request to learn again.
+ */
+export class StreamUsageRefusals {
+  /** Provider name → the base URL it refused at. */
+  private readonly refusedAt = new Map<string, string>();
+
+  /**
+   * Tells whether a provider has refused the field.
+   *
+   * @param provider - The provider.
+   * @returns True when it refused at the base URL it has now.
+   */
+  has(provider: ProviderConfig): boolean {
+    return this.refusedAt.get(provider.name) === provider.baseUrl;
+  }
+
+  /**
+   * Remembers that a provider refused the field.
+   *
+   * @param provider - The provider.
+   */
+  add(provider: ProviderConfig): void {
+    this.refusedAt.set(provider.name, provider.baseUrl);
+  }
+}
+
 /** What one proxied call needs. */
 export interface ProxyCall {
   /** The providers the endpoint serves. */
@@ -53,6 +90,8 @@ export interface ProxyCall {
   usage: UsageStore;
   /** Picks the target of a request that names a pool. */
   balancer: PoolBalancer;
+  /** The providers `stream_options.include_usage` is no longer added for. */
+  streamUsageRefusals: StreamUsageRefusals;
 }
 
 /** How a request that names a pool is placed. */
@@ -123,15 +162,37 @@ export function routeBody(scope: EndpointScope, body: unknown, routing: PoolRout
   if (scopePool) {
     return routeToPool(scopePool, body, routing);
   }
+  const served = findServedModel(scope, body.model);
+  if (served === undefined) {
+    throw new ModelNotFoundError(body.model);
+  }
+  return { provider: served.provider, body: { ...body, model: served.upstreamId }, release: NOTHING_TO_RELEASE };
+}
+
+/** A `<provider>/<model>` id matched to the member that serves it. */
+export interface ServedModel {
+  provider: ProviderConfig;
+  /** The model's id at the provider. */
+  upstreamId: string;
+}
+
+/**
+ * Finds the member of a scope that serves a `<provider>/<model>` id. Pools are not looked at.
+ *
+ * @param scope - The endpoint's members.
+ * @param model - The id a client asked for.
+ * @returns The provider and its own id for the model, or undefined when the endpoint does not serve it.
+ */
+export function findServedModel(scope: EndpointScope, model: string): ServedModel | undefined {
   const split = splitNamespacedModel(
-    body.model,
+    model,
     scope.members.map((member) => member.provider.name),
   );
   const member = scope.members.find((candidate) => candidate.provider.name === split?.providerName);
   if (split === undefined || member === undefined || exposesModel(member, split.upstreamId) === false) {
-    throw new ModelNotFoundError(body.model);
+    return undefined;
   }
-  return { provider: member.provider, body: { ...body, model: split.upstreamId }, release: NOTHING_TO_RELEASE };
+  return { provider: member.provider, upstreamId: split.upstreamId };
 }
 
 /**
@@ -162,7 +223,7 @@ export function withStreamUsage(path: string, body: Record<string, unknown>): Re
  * @param wanted - The header's name, in lower case.
  * @returns The header's value, or an empty string when the response has none.
  */
-function responseHeader(upstream: UpstreamResponse, wanted: string): string {
+export function responseHeader(upstream: UpstreamResponse, wanted: string): string {
   const byName = new Map<string, string>();
   upstream.headers.forEach((value, name) => {
     byName.set(name.toLowerCase(), value);
@@ -195,6 +256,8 @@ interface UpstreamTarget {
   url: string;
   /** The body to send, its `model` the provider's own id. */
   body: Record<string, unknown>;
+  /** The body without the `stream_options.include_usage` the router added; the same object when it added nothing. */
+  bareBody: Record<string, unknown>;
   /** What the request is counted under. */
   served: ServedBy;
   /** Frees the pool target's in-flight slot. */
@@ -219,10 +282,12 @@ function upstreamTarget(call: ProxyCall, req: Request): UpstreamTarget {
   const { provider } = routed;
   const path = pathSegments.map(encodeURIComponent).join('/');
   const { search } = new URL(req.originalUrl, 'http://router.invalid');
+  const hasRefusedUsage = call.streamUsageRefusals.has(provider);
   return {
     provider,
     url: `${upstreamUrl(provider.baseUrl, path)}${search}`,
-    body: withStreamUsage(pathSegments.join('/'), routed.body),
+    body: hasRefusedUsage ? routed.body : withStreamUsage(pathSegments.join('/'), routed.body),
+    bareBody: routed.body,
     served: { workspace: scope.workspace, provider: provider.name, upstreamId: String(routed.body.model) },
     release: routed.release,
   };
@@ -265,6 +330,64 @@ async function askProvider(
 }
 
 /**
+ * Rebuilds a response whose body has been read, so it can be forwarded as if it had not.
+ *
+ * @param upstream - The provider's response.
+ * @param text - Its body, already read.
+ * @returns A response with the same status, headers and body.
+ */
+function readResponse(upstream: UpstreamResponse, text: string): UpstreamResponse {
+  const headers = new Headers();
+  upstream.headers.forEach((value, name) => {
+    headers.append(name, value);
+  });
+  return new Response(text, { status: upstream.status, headers });
+}
+
+/**
+ * Sends a request to its provider, and sends it again without the router's `stream_options.include_usage` when the
+ * provider refuses it.
+ *
+ * @param call - How to reach the provider, and the providers that refused the field before.
+ * @param target - The provider, its URL and the body.
+ * @param req - The client request.
+ * @param signal - Aborts the provider request when the client goes away.
+ * @returns The provider's response, headers received: the second one when the first refused the field.
+ * @throws A 502 HttpError when the provider cannot be reached, a 504 when it does not answer in time.
+ *
+ * @remarks
+ * Only a field the router added is taken back out; a client's own choice reaches the provider as it was sent. A
+ * refusal is a 4xx whose body names `stream_options` or `include_usage`, and it is learned once per provider, so its
+ * later streams go without the field and report no token counts. Any other 4xx is passed on as it came.
+ */
+async function askWithStreamUsage(
+  call: ProxyCall,
+  target: UpstreamTarget,
+  req: Request,
+  signal: AbortSignal,
+): Promise<UpstreamResponse> {
+  const upstream = await askProvider(call, target, req, signal);
+  const hasAddedUsage = target.body !== target.bareBody;
+  const isClientError =
+    upstream.status >= CLIENT_ERROR_STATUSES.lowest && upstream.status <= CLIENT_ERROR_STATUSES.highest;
+  if (hasAddedUsage === false || isClientError === false) {
+    return upstream;
+  }
+  const text = await upstream.text();
+  const isUsageRefusal = REFUSES_STREAM_USAGE.test(text);
+  if (isUsageRefusal === false) {
+    return readResponse(upstream, text);
+  }
+  const { provider } = target;
+  call.streamUsageRefusals.add(provider);
+  console.warn(
+    `[gateway] provider "${provider.name}" refused stream_options.include_usage (${upstream.status}); ` +
+      'its streams are sent on without it from now on, and report no token counts',
+  );
+  return askProvider(call, { ...target, body: target.bareBody }, req, signal);
+}
+
+/**
  * Makes a pass-through stream that shows each chunk to a usage reader.
  *
  * @param reader - Reads the token counts out of the body as it goes by.
@@ -299,7 +422,7 @@ async function forwardToTarget(call: ProxyCall, target: UpstreamTarget, req: Req
     }
   });
 
-  const upstream = await askProvider(call, target, req, clientGone.signal);
+  const upstream = await askWithStreamUsage(call, target, req, clientGone.signal);
 
   forwardHead(upstream, res);
   if (upstream.body === null) {
@@ -349,7 +472,8 @@ async function forwardToTarget(call: ProxyCall, target: UpstreamTarget, req: Req
  * @remarks
  * The provider's own status and body pass through untouched, errors included, and a client that goes away aborts the
  * provider request. A streamed completion is sent on with `stream_options.include_usage` on, so the provider ends the
- * stream with its token counts; every answered request is counted in `call.usage`. A pool target's slot is held until
+ * stream with its token counts, unless the provider has refused the field; every answered request is counted in
+ * `call.usage`. A pool target's slot is held until
  * the answer ends or the client leaves.
  */
 export async function proxyToProvider(call: ProxyCall, req: Request, res: Response): Promise<void> {

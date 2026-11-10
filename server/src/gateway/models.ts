@@ -5,6 +5,7 @@ import { errorMessage, HttpError, upstreamFailed } from '../core/errors.ts';
 import { type EndpointScope, exposesModel, type ScopeMember } from './endpoint-scope.ts';
 import { namespaceModel } from './naming.ts';
 import { providerHeaders } from './provider-headers.ts';
+import { withServedWindows } from './served-window.ts';
 import { fetchWithin, type UpstreamFetch, upstreamUrl } from './upstream-fetch.ts';
 
 /** One model as a provider lists it. Only the id is relied on; the rest is passed through. */
@@ -126,7 +127,7 @@ export class ModelCatalog {
    * Fetches `<baseUrl>/models` from a provider.
    *
    * @param provider - The provider.
-   * @returns The models it lists.
+   * @returns The models it lists, a llama.cpp provider's with the window each is served in as `context_length`.
    * @throws A 502 HttpError for an unreachable provider, a non-2xx answer or an unexpected body; a 504 for a timeout.
    */
   private async fetchModels(provider: ProviderConfig): Promise<UpstreamModel[]> {
@@ -136,13 +137,16 @@ export class ModelCatalog {
     if (ok === false) {
       throw upstreamFailed(failed, `${url} answered ${status}: ${text.slice(0, this.settings.errorBodyMaxChars)}`);
     }
+    let models: UpstreamModel[];
     try {
-      return upstreamModelListSchema.parse(JSON.parse(text)).data;
+      models = upstreamModelListSchema.parse(JSON.parse(text)).data;
     } catch (cause) {
       throw upstreamFailed(failed, `${url} did not answer with an OpenAI model list ({ "data": [{ "id": ... }] })`, {
         cause,
       });
     }
+    // Cached with the listing, so a client is told the served window without asking llama.cpp itself.
+    return withServedWindows(this.fetch, provider, models, this.settings.propsTimeoutMs);
   }
 }
 

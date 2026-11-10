@@ -55,6 +55,11 @@ export interface GatewaySettings {
   modelListTimeoutMs: number;
   /** How much of a provider's error body is passed on as detail, in characters. */
   errorBodyMaxChars: number;
+  /**
+   * How long a llama.cpp provider may take to answer `/props` while its listing is fetched, in ms. Shorter than the
+   * listing's own, since the window is a nicety and the listing waits for it.
+   */
+  propsTimeoutMs: number;
 }
 
 /** The fixed gateway settings this build ships with. */
@@ -62,6 +67,7 @@ export const GATEWAY_DEFAULTS: Readonly<GatewaySettings> = Object.freeze({
   modelListCacheSeconds: 60,
   modelListTimeoutMs: 10_000,
   errorBodyMaxChars: 500,
+  propsTimeoutMs: 3_000,
 });
 
 /** Settings for counting the tokens providers report. */

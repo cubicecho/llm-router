@@ -72,3 +72,13 @@ export async function fetchWithin(
 export function upstreamUrl(baseUrl: string, path: string): string {
   return `${baseUrl.replace(/\/+$/, '')}/${path}`;
 }
+
+/**
+ * The server root behind a provider's OpenAI base URL, where a server's native routes (llama.cpp's `/props`) live.
+ *
+ * @param baseUrl - The provider's OpenAI base URL, e.g. `http://gpu:8080/v1`.
+ * @returns The URL less its trailing slashes and then one trailing `/v1`; one that ends in neither comes back as given.
+ */
+export function serverRoot(baseUrl: string): string {
+  return baseUrl.replace(/\/+$/, '').replace(/\/v1$/, '');
+}

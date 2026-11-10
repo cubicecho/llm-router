@@ -32,7 +32,7 @@ Monorepo (npm workspaces): `shared/` (zod schemas and types, the contract),
 All from the repo root.
 
 ```bash
-npm run dev              # server (watch, port 3001) + Vite (port 3000, proxies /api, /v1, /w)
+npm run dev              # server (watch, port 3001) + Vite (port 3000, proxies /api, /v1, /w, /props)
 npm run check            # biome check --write + tsc --noEmit for all three packages
 npm test                 # vitest: server (node), app (jsdom), then the stories in Chromium
 npm run storybook        # Storybook dev server (port 6006)
@@ -83,7 +83,17 @@ A single story file: `cd app && npx vitest run -c vitest.stories.config.ts src/r
   response is piped through a tap that feeds `usage/reader.ts`; the bytes sent
   on are untouched. The one change to a request is
   `stream_options.include_usage` on a streamed completion (`withStreamUsage`),
-  without which a stream reports no counts. Only a 2xx answer is counted.
+  without which a stream reports no counts. A provider that refuses it is
+  asked again without it and remembered in `StreamUsageRefusals` (in memory,
+  per name and base URL). Only a 2xx answer is counted.
+- **A llama.cpp provider's listing carries its served window.** The catalog asks
+  `/props` per running model when it caches the listing
+  (`gateway/served-window.ts`) and adds `context_length`. `/props` and
+  `/w/<slug>/props` are also forwarded (`gateway/props.ts`), at the root beside
+  each `/v1`, because that is where a client looks for llama.cpp's.
+- **Nothing under a backend prefix falls back to the SPA.** `BACKEND_PATH_PREFIXES`
+  in `http/app.ts` names them; a miss under one is a JSON 404. Add a prefix there
+  when adding a route outside `/api` and `/v1`.
 - **`usage.json` sits outside `config/`** so the config watcher does not reload
   on every flush. Writes are debounced (`USAGE_DEFAULTS.flushDelayMs`) and
   flushed on shutdown. Deleting a provider drops its counts.

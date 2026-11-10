@@ -97,6 +97,61 @@ describe('ModelCatalog', () => {
   });
 });
 
+describe('ModelCatalog with a llama.cpp provider', () => {
+  const LOADED = { value: 'loaded' };
+  const SERVED_WINDOW = 4096;
+
+  it('puts the window each running model is served in on it as context_length', async () => {
+    const urls: string[] = [];
+    const fetch: UpstreamFetch = async (url) => {
+      urls.push(url);
+      if (url.endsWith('/models')) {
+        return Response.json({
+          data: [
+            { id: 'running', owned_by: 'llamacpp', status: LOADED, meta: { n_ctx_train: 262_144 } },
+            { id: 'asleep', owned_by: 'llamacpp', status: { value: 'unloaded' } },
+            { id: 'stated', owned_by: 'llamacpp', status: LOADED, context_length: 100 },
+          ],
+        });
+      }
+      return Response.json({ default_generation_settings: { n_ctx: SERVED_WINDOW } });
+    };
+    const models = await new ModelCatalog(fetch).list(ALPHA);
+    expect(models.map(({ id, context_length }) => ({ id, context_length }))).toEqual([
+      { id: 'running', context_length: SERVED_WINDOW },
+      { id: 'asleep', context_length: undefined },
+      { id: 'stated', context_length: 100 },
+    ]);
+    expect(urls).toEqual(['http://alpha.test/v1/models', 'http://alpha.test/props?model=running']);
+  });
+
+  it('asks a single-model server, which has no status, by its trained window alone', async () => {
+    const fetch: UpstreamFetch = async (url) =>
+      url.endsWith('/models')
+        ? Response.json({ data: [{ id: 'model.gguf', meta: { n_ctx_train: 32_768 } }] })
+        : Response.json({ default_generation_settings: { n_ctx: SERVED_WINDOW } });
+    const [model] = await new ModelCatalog(fetch).list(ALPHA);
+    expect(model?.context_length).toBe(SERVED_WINDOW);
+  });
+
+  it('lists the models as they came when /props fails or says no window', async () => {
+    const listed = { id: 'running', owned_by: 'llamacpp' };
+    const answers: (() => Promise<Response>)[] = [
+      async () => {
+        throw new Error('connect ECONNREFUSED');
+      },
+      async () => new Response('nope', { status: NOT_FOUND }),
+      async () => new Response('<html>'),
+      async () => Response.json({ default_generation_settings: {} }),
+    ];
+    for (const answer of answers) {
+      const fetch: UpstreamFetch = (url) =>
+        url.endsWith('/models') ? Promise.resolve(Response.json({ data: [listed] })) : answer();
+      await expect(new ModelCatalog(fetch).list(ALPHA)).resolves.toEqual([listed]);
+    }
+  });
+});
+
 describe('listScopeModels', () => {
   it('merges the members in order, under routed ids, and leaves out what an allowlist hides', async () => {
     const fetch: UpstreamFetch = async (url) =>

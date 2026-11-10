@@ -18,7 +18,7 @@ import { UsageStore } from '../../usage/store.ts';
 import { PoolBalancer } from '../balancer.ts';
 import type { EndpointScope } from '../endpoint-scope.ts';
 import { ModelNotFoundError, openAiErrorMiddleware } from '../openai-error.ts';
-import { type PoolRouting, proxyToProvider, routeBody, withStreamUsage } from '../proxy.ts';
+import { type PoolRouting, proxyToProvider, routeBody, StreamUsageRefusals, withStreamUsage } from '../proxy.ts';
 import type { UpstreamFetch, UpstreamRequest } from '../upstream-fetch.ts';
 
 const ALPHA: ProviderConfig = { name: 'alpha', enabled: true, baseUrl: 'http://alpha.test/v1', headers: {} };
@@ -138,11 +138,23 @@ describe('withStreamUsage', () => {
   });
 });
 
+describe('StreamUsageRefusals', () => {
+  it('remembers a provider until it moves to another base URL', () => {
+    const refusals = new StreamUsageRefusals();
+    expect(refusals.has(ALPHA)).toBe(false);
+    refusals.add(ALPHA);
+    expect(refusals.has({ ...ALPHA })).toBe(true);
+    expect(refusals.has({ ...ALPHA, baseUrl: 'http://elsewhere.test/v1' })).toBe(false);
+    expect(refusals.has(BETA)).toBe(false);
+  });
+});
+
 describe('proxyToProvider', () => {
   let dataDir: string;
   let usage: UsageStore;
   let sent: { url: string; request: UpstreamRequest }[];
   let balancer: PoolBalancer;
+  let streamUsageRefusals: StreamUsageRefusals;
 
   /** Builds an app that proxies every POST, with a provider that answers through `answer`. */
   const proxyApp = (answer: UpstreamFetch, pathSegments?: readonly string[]): express.Express => {
@@ -160,6 +172,7 @@ describe('proxyToProvider', () => {
         responseTimeoutMs: RESPONSE_TIMEOUT_MS,
         usage,
         balancer,
+        streamUsageRefusals,
       };
       await proxyToProvider(call, req, res);
     });
@@ -174,6 +187,7 @@ describe('proxyToProvider', () => {
     usage = new UsageStore(dataDir);
     sent = [];
     balancer = new PoolBalancer();
+    streamUsageRefusals = new StreamUsageRefusals();
   });
 
   afterEach(async () => {
@@ -227,6 +241,76 @@ describe('proxyToProvider', () => {
     expect(res.headers['x-request-id']).toBe('abc');
     expect(res.headers['content-encoding']).toBeUndefined();
     expect(usage.snapshot().providers).toEqual([]);
+  });
+
+  describe('a provider that refuses stream_options', () => {
+    const STREAM_BODY = { model: 'alpha/small', stream: true };
+    const sentBodies = () => sent.map(({ request: upstreamRequest }) => JSON.parse(upstreamRequest.body ?? ''));
+    /** Refuses any body with `stream_options`, the way a server that has not heard of it does. */
+    const refusing: UpstreamFetch = async (_url, upstreamRequest) => {
+      const body = JSON.parse(upstreamRequest.body ?? '');
+      if (body.stream_options !== undefined) {
+        return Response.json(
+          { error: { message: 'Unrecognized request argument supplied: stream_options' } },
+          { status: HttpStatus.BadRequest },
+        );
+      }
+      return new Response('data: {"delta":"a"}\n\ndata: [DONE]\n\n', {
+        headers: { 'content-type': 'text/event-stream' },
+      });
+    };
+
+    it('is sent the stream again without the field, and not sent the field again', async () => {
+      const first = await request(proxyApp(refusing)).post('/chat/completions').send(STREAM_BODY);
+      const second = await request(proxyApp(refusing)).post('/chat/completions').send(STREAM_BODY);
+
+      expect([first.status, second.status]).toEqual([HttpStatus.Ok, HttpStatus.Ok]);
+      expect(second.text).toBe('data: {"delta":"a"}\n\ndata: [DONE]\n\n');
+      expect(sentBodies()).toEqual([
+        { model: 'small', stream: true, stream_options: { include_usage: true } },
+        { model: 'small', stream: true },
+        { model: 'small', stream: true },
+      ]);
+      expect(streamUsageRefusals.has(ALPHA)).toBe(true);
+      expect(usage.snapshot().providers).toMatchObject([{ provider: 'alpha', requests: 2, inputTokens: 0 }]);
+    });
+
+    it('keeps the client’s other stream options on the second try', async () => {
+      const answer: UpstreamFetch = async (url, upstreamRequest) => {
+        const body = JSON.parse(upstreamRequest.body ?? '');
+        return body.stream_options?.include_usage === undefined ? Response.json({}) : refusing(url, upstreamRequest);
+      };
+      await request(proxyApp(answer))
+        .post('/chat/completions')
+        .send({ ...STREAM_BODY, stream_options: { include_obfuscation: false } });
+      expect(sentBodies().at(-1)).toEqual({
+        model: 'small',
+        stream: true,
+        stream_options: { include_obfuscation: false },
+      });
+    });
+
+    it('passes the refusal on when the client chose include_usage itself', async () => {
+      const res = await request(proxyApp(refusing))
+        .post('/chat/completions')
+        .send({ ...STREAM_BODY, stream_options: { include_usage: true } });
+      expect(res.status).toBe(HttpStatus.BadRequest);
+      expect(sent).toHaveLength(1);
+      expect(streamUsageRefusals.has(ALPHA)).toBe(false);
+    });
+  });
+
+  it('passes on any other refusal of a stream as it came, and goes on adding include_usage', async () => {
+    const refusal = { error: { message: 'messages is required' } };
+    const answer: UpstreamFetch = async () =>
+      Response.json(refusal, { status: HttpStatus.BadRequest, headers: { 'x-request-id': 'abc' } });
+    const res = await request(proxyApp(answer)).post('/chat/completions').send({ model: 'alpha/small', stream: true });
+
+    expect(res.status).toBe(HttpStatus.BadRequest);
+    expect(res.body).toEqual(refusal);
+    expect(res.headers['x-request-id']).toBe('abc');
+    expect(sent).toHaveLength(1);
+    expect(streamUsageRefusals.has(ALPHA)).toBe(false);
   });
 
   it('counts an answer that has no body as a request', async () => {
