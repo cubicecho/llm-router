@@ -72,6 +72,7 @@ client.chat.completions.create(model="ollama/qwen3:32b", messages=[{"role": "use
 | `GET /v1/models`, `GET /v1/models/<id>` | every enabled pool, then the models of every enabled provider |
 | `POST /v1/<anything>` | forwards a JSON request to the provider named in `model`, or to one target of the pool it names |
 | `/w/<slug>/v1/...` | the same, limited to one workspace's members, their allowed models and its pools |
+| `GET /props?model=<id>`, `GET /w/<slug>/props?model=<id>` | forwards to the `/props` of the provider that serves `<provider>/<model>`, for llama.cpp's served window |
 | `/api/...` | the admin API the UI uses: `status`, `settings`, `reload`, `providers`, `workspaces`, `pools`, `usage` |
 
 Any `POST` with a JSON body that carries a `model` is routed: `chat/completions`,
@@ -173,7 +174,24 @@ so put credentials in the API key field.
   request with `stream: true` is sent on with
   `stream_options.include_usage: true`, and the stream then ends with one extra
   chunk that has empty `choices` and the `usage`. A request that sets
-  `include_usage` itself, either way, is left as it is.
+  `include_usage` itself, either way, is left as it is. A provider that
+  refuses the field (a 4xx that names `stream_options` or `include_usage`) is
+  sent the request again without it, and the router stops adding it for that
+  provider until the provider's URL changes or the router restarts; its streams
+  are then counted as requests without tokens.
+- **llama.cpp's served window is in the listing.** llama.cpp lists the window
+  a model was trained with (`meta.n_ctx_train`) but serves it in the one it
+  was started with, often far smaller. For a provider whose listing looks like
+  llama.cpp's (`owned_by: "llamacpp"` or a `meta.n_ctx_train`), the router asks
+  `/props?model=<id>` for each running model when it caches the listing and
+  lists `default_generation_settings.n_ctx` as `context_length`, so a client
+  sizes its requests without a probe of its own. A llama.cpp router's model
+  that is not loaded is not asked, since asking could load it. `/props` itself
+  is forwarded too, for clients that ask it; a pool's is not answered, since
+  its targets can each serve a different window.
+- **A miss under an API path is a JSON 404.** `/api`, `/v1`, `/w/...`,
+  `/props` and `/healthz` never fall back to the web UI, so a client probing
+  an API path is not handed `index.html` with a 200.
 - **Usage is read, not computed.** The router copies the counts out of the
   response as it passes and never tokenizes anything, so it adds no delay and
   the numbers match the provider's bill. A non-streamed response over 8 MB is

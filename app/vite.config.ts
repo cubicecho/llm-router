@@ -25,6 +25,7 @@ export default defineConfig({
       '/v1': 'http://localhost:3001',
       // A regex, so the SPA's own /workspaces route is not proxied.
       '^/w/': 'http://localhost:3001',
+      '/props': 'http://localhost:3001',
     },
   },
 });

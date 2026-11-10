@@ -7,7 +7,7 @@ import type { PoolBalancer } from './balancer.ts';
 import type { EndpointScope, ScopePool } from './endpoint-scope.ts';
 import { listScopeModels, type ModelCatalog, type ScopedModel } from './models.ts';
 import { ModelNotFoundError } from './openai-error.ts';
-import { proxyToProvider } from './proxy.ts';
+import { proxyToProvider, type StreamUsageRefusals } from './proxy.ts';
 import type { UpstreamFetch } from './upstream-fetch.ts';
 
 /** What the OpenAI-compatible routes are built over. */
@@ -20,6 +20,8 @@ export interface GatewayDeps {
   usage: UsageStore;
   /** Picks the target of a request that names a pool. */
   balancer: PoolBalancer;
+  /** The providers `stream_options.include_usage` is no longer added for. */
+  streamUsageRefusals: StreamUsageRefusals;
 }
 
 /** OpenAI's `object` for one model. */
@@ -65,12 +67,12 @@ async function listOpenAiModels(scope: EndpointScope, catalog: ModelCatalog): Pr
 /**
  * Builds the OpenAI-compatible routes of one endpoint, with paths relative to its `/v1`.
  *
- * @param deps - The store, the model catalog, the provider `fetch`, usage and the pool balancer.
+ * @param deps - The store, the model catalog, the provider `fetch`, usage, the pool balancer and the usage refusals.
  * @param resolveScope - Works out the providers a request may reach; throws to refuse it.
  * @returns A router serving `GET /models`, `GET /models/<id>` and every JSON `POST`.
  */
 export function createEndpointRouter(deps: GatewayDeps, resolveScope: (req: Request) => EndpointScope): Router {
-  const { store, catalog, fetch, usage, balancer } = deps;
+  const { store, catalog, fetch, usage, balancer, streamUsageRefusals } = deps;
   const router = Router({ mergeParams: true });
 
   router.get('/models', async (req, res) => {
@@ -95,6 +97,7 @@ export function createEndpointRouter(deps: GatewayDeps, resolveScope: (req: Requ
         fetch,
         usage,
         balancer,
+        streamUsageRefusals,
         responseTimeoutMs: store.getSettings().responseTimeoutMs,
       },
       req,

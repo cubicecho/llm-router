@@ -14,13 +14,29 @@ import { PoolBalancer } from '../gateway/balancer.ts';
 import { globalScope, workspaceScope } from '../gateway/endpoint-scope.ts';
 import { ModelCatalog } from '../gateway/models.ts';
 import { openAiErrorMiddleware, sendOpenAiError } from '../gateway/openai-error.ts';
+import { createPropsHandler } from '../gateway/props.ts';
+import { StreamUsageRefusals } from '../gateway/proxy.ts';
 import { createEndpointRouter } from '../gateway/routes.ts';
+import { PROPS_PATH } from '../gateway/served-window.ts';
 import type { UpstreamFetch } from '../gateway/upstream-fetch.ts';
 import { UsageStore } from '../usage/store.ts';
 import { outboundFetch } from './tuning.ts';
 
-/** Path prefixes the backend answers; the web UI's fallback leaves them alone. */
-const BACKEND_PATH_PREFIXES = ['/api', GLOBAL_ENDPOINT_PATH, `${WORKSPACE_PATH_PREFIX}/`, '/healthz'] as const;
+/**
+ * Path prefixes the backend answers. The web UI's fallback leaves them alone, and a miss under one is a JSON 404:
+ * a client probing an API path must not be handed `index.html` with a 200.
+ */
+const BACKEND_PATH_PREFIXES = ['/api', GLOBAL_ENDPOINT_PATH, WORKSPACE_PATH_PREFIX, PROPS_PATH, '/healthz'] as const;
+
+/**
+ * Tells whether a request path is one the backend answers.
+ *
+ * @param requestPath - The request's path, without its query string.
+ * @returns True for a prefix itself and anything under it (`/w/team/props`), false for a lookalike (`/workspaces`).
+ */
+function isBackendPath(requestPath: string): boolean {
+  return BACKEND_PATH_PREFIXES.some((prefix) => requestPath === prefix || requestPath.startsWith(`${prefix}/`));
+}
 
 /** The route parameter that carries a workspace's slug. */
 const SLUG_PARAM = 'slug';
@@ -44,7 +60,8 @@ export interface AppDeps {
  * Builds the Express app (separate from listen() so tests can drive it with supertest).
  *
  * @param deps - The store, plus the test overrides.
- * @returns The app: /healthz, /api, /v1, /w/<slug>/v1, and the built web UI when its directory exists.
+ * @returns The app: /healthz, /api, /v1, /w/<slug>/v1, /props and /w/<slug>/props, and the built web UI when its
+ * directory exists.
  */
 export function createApp(deps: AppDeps): express.Express {
   const { store } = deps;
@@ -73,26 +90,31 @@ export function createApp(deps: AppDeps): express.Express {
 
   app.use('/api', createAuthMiddleware(getAuth), createApiRouter({ store, catalog, usage, balancer }));
 
-  const gateway = { store, catalog, fetch, usage, balancer };
-  app.use(
-    GLOBAL_ENDPOINT_PATH,
-    openAiOriginGuard,
-    openAiAuth,
-    createEndpointRouter(gateway, () => globalScope(store)),
-  );
+  const gateway = { store, catalog, fetch, usage, balancer, streamUsageRefusals: new StreamUsageRefusals() };
+  const resolveGlobal = () => globalScope(store);
+  const resolveWorkspace = (req: express.Request) => {
+    const slug = req.params[SLUG_PARAM];
+    const workspace = typeof slug === 'string' ? store.getWorkspace(slug) : undefined;
+    const isUnserved = workspace === undefined || workspace.enabled === false;
+    if (isUnserved) {
+      throw notFound(`Unknown workspace "${slug}"`);
+    }
+    return workspaceScope(workspace, store);
+  };
+  app.use(GLOBAL_ENDPOINT_PATH, openAiOriginGuard, openAiAuth, createEndpointRouter(gateway, resolveGlobal));
   app.use(
     workspaceEndpointPath(`:${SLUG_PARAM}`),
     openAiOriginGuard,
     openAiAuth,
-    createEndpointRouter(gateway, (req) => {
-      const slug = req.params[SLUG_PARAM];
-      const workspace = typeof slug === 'string' ? store.getWorkspace(slug) : undefined;
-      const isUnserved = workspace === undefined || workspace.enabled === false;
-      if (isUnserved) {
-        throw notFound(`Unknown workspace "${slug}"`);
-      }
-      return workspaceScope(workspace, store);
-    }),
+    createEndpointRouter(gateway, resolveWorkspace),
+  );
+  // llama.cpp's /props sits at the server root beside /v1, so a client looks for it beside each endpoint's /v1.
+  app.get(PROPS_PATH, openAiOriginGuard, openAiAuth, createPropsHandler(gateway, resolveGlobal));
+  app.get(
+    `${WORKSPACE_PATH_PREFIX}/:${SLUG_PARAM}${PROPS_PATH}`,
+    openAiOriginGuard,
+    openAiAuth,
+    createPropsHandler(gateway, resolveWorkspace),
   );
 
   // Production: serve the built web UI with an SPA fallback for non-API GETs.
@@ -100,8 +122,7 @@ export function createApp(deps: AppDeps): express.Express {
   if (existsSync(appDist)) {
     app.use(express.static(appDist));
     app.use((req, res, next) => {
-      const isBackendPath = BACKEND_PATH_PREFIXES.some((prefix) => req.path.startsWith(prefix));
-      if (req.method === 'GET' && isBackendPath === false) {
+      if (req.method === 'GET' && isBackendPath(req.path) === false) {
         res.sendFile(path.join(appDist, 'index.html'));
         return;
       }
@@ -109,8 +130,16 @@ export function createApp(deps: AppDeps): express.Express {
     });
   }
 
+  app.use((req, _res, next) => {
+    if (isBackendPath(req.path)) {
+      throw notFound(`${req.method} ${req.path} is not served`);
+    }
+    next();
+  });
+
   app.use(GLOBAL_ENDPOINT_PATH, openAiErrorMiddleware);
   app.use(WORKSPACE_PATH_PREFIX, openAiErrorMiddleware);
+  app.use(PROPS_PATH, openAiErrorMiddleware);
   app.use(errorMiddleware);
   return app;
 }

@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -29,8 +29,16 @@ interface StubProvider {
   close: () => Promise<void>;
 }
 
-/** Starts a provider that lists `models` and answers chat completions, streamed when asked. */
-async function startProvider(models: string[]): Promise<StubProvider> {
+/** The window every stub provider says on `/props` that it serves its models in. */
+const SERVED_WINDOW = 8192;
+
+/**
+ * Starts a provider that lists `models`, answers chat completions (streamed when asked) and, at its root, `/props`.
+ *
+ * @param models - The ids it lists.
+ * @param [ownedBy] - The `owned_by` of each; `llamacpp` makes it look like llama.cpp's server.
+ */
+async function startProvider(models: string[], ownedBy = 'stub'): Promise<StubProvider> {
   const seen: SeenRequest[] = [];
   const upstream = express();
   upstream.use(express.json());
@@ -44,7 +52,10 @@ async function startProvider(models: string[]): Promise<StubProvider> {
     next();
   });
   upstream.get('/v1/models', (_req, res) => {
-    res.json({ object: 'list', data: models.map((id) => ({ id, object: 'model', created: 7, owned_by: 'stub' })) });
+    res.json({ object: 'list', data: models.map((id) => ({ id, object: 'model', created: 7, owned_by: ownedBy })) });
+  });
+  upstream.get('/props', (req, res) => {
+    res.json({ model_alias: req.query.model, default_generation_settings: { n_ctx: SERVED_WINDOW } });
   });
   upstream.post('/v1/chat/completions', (req, res) => {
     if (req.body.model === 'broken') {
@@ -141,6 +152,14 @@ describe('LLM Router', () => {
         const res = await request(app).get(url);
         expect(res.status).toBe(401);
         expect(res.body.error).toMatchObject({ type: 'authentication_error', code: 'invalid_api_key' });
+      }
+    });
+
+    it('requires the token on /props, in the OpenAI envelope', async () => {
+      for (const url of ['/props?model=alpha/small', '/w/any/props?model=alpha/small']) {
+        const res = await request(app).get(url);
+        expect(res.status).toBe(401);
+        expect(res.body.error).toMatchObject({ type: 'authentication_error' });
       }
     });
 
@@ -415,6 +434,84 @@ describe('LLM Router', () => {
       await authed(request(app).patch('/api/providers/alpha')).send({ description: 'changed' });
       await authed(request(app).get('/v1/models'));
       expect(alpha.seen.filter((seen) => seen.path === '/v1/models')).toHaveLength(2);
+    });
+  });
+
+  describe('llama.cpp /props', () => {
+    let llama: StubProvider;
+
+    beforeEach(async () => {
+      llama = await startProvider(['qwen'], 'llamacpp');
+      await addProvider({ name: 'alpha', baseUrl: alpha.baseUrl, apiKey: 'sk-alpha' });
+      await addProvider({ name: 'llama', baseUrl: llama.baseUrl });
+      await authed(request(app).post('/api/workspaces')).send({
+        name: 'team',
+        members: { alpha: { models: ['small'] } },
+      });
+    });
+
+    afterEach(async () => {
+      await llama.close();
+    });
+
+    it('lists a llama.cpp model with the window it is served in, and asks no other provider', async () => {
+      const res = await authed(request(app).get('/v1/models'));
+      const byId = new Map(res.body.data.map((model: { id: string }) => [model.id, model]));
+      expect(byId.get('llama/qwen')).toMatchObject({ context_length: SERVED_WINDOW, owned_by: 'llama' });
+      expect(byId.get('alpha/small')).not.toHaveProperty('context_length');
+      expect(llama.seen.map((seen) => seen.path)).toEqual(['/v1/models', '/props?model=qwen']);
+      expect(alpha.seen.map((seen) => seen.path)).toEqual(['/v1/models']);
+    });
+
+    it('forwards /props to the provider of the model it names, under the provider’s own id and key', async () => {
+      const res = await authed(request(app).get('/props?model=alpha/small'));
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ model_alias: 'small', default_generation_settings: { n_ctx: SERVED_WINDOW } });
+      expect(alpha.seen.at(-1)).toMatchObject({ path: '/props?model=small', authorization: 'Bearer sk-alpha' });
+
+      const inWorkspace = await authed(request(app).get('/w/team/props?model=alpha/small'));
+      expect(inWorkspace.body.model_alias).toBe('small');
+    });
+
+    it('answers /props for a model outside the scope, or none, in the OpenAI envelope', async () => {
+      const outside = await authed(request(app).get('/w/team/props?model=llama/qwen'));
+      expect(outside.status).toBe(404);
+      expect(outside.body.error.code).toBe('model_not_found');
+      const missing = await authed(request(app).get('/props'));
+      expect(missing.status).toBe(400);
+      expect(missing.body.error.type).toBe('invalid_request_error');
+      const unknown = await authed(request(app).get('/w/nope/props?model=alpha/small'));
+      expect(unknown.status).toBe(404);
+    });
+  });
+
+  describe('the web UI', () => {
+    beforeEach(async () => {
+      const appDistDir = path.join(dataDir, 'dist');
+      await mkdir(appDistDir);
+      await writeFile(path.join(appDistDir, 'index.html'), '<!doctype html><title>llm-router</title>');
+      app = createApp({ store, fetch: upstreamFetch, appDistDir });
+    });
+
+    it('is served for its own routes', async () => {
+      for (const url of ['/', '/workspaces', '/workspaces/team', '/providers/alpha']) {
+        const res = await request(app).get(url);
+        expect(res.status).toBe(200);
+        expect(res.text).toContain('<title>llm-router</title>');
+      }
+    });
+
+    it('is never served for a miss under an API path, which is a JSON 404', async () => {
+      const cases = ['/props?model=nope/x', '/api/nope', '/v1/nope', '/w/team/nope', '/w/team/v1/nope', '/healthz/x'];
+      for (const url of cases) {
+        const res = await authed(request(app).get(url));
+        expect(res.status, url).toBe(404);
+        expect(res.headers['content-type'], url).toContain('application/json');
+      }
+      const workspaceMiss = await authed(request(app).post('/w/team/nope'));
+      expect(workspaceMiss.body.error).toMatchObject({ type: 'invalid_request_error', code: 'not_found' });
+      const apiMiss = await authed(request(app).get('/api/nope'));
+      expect(apiMiss.body.code).toBe(ErrorCode.NotFound);
     });
   });
 
